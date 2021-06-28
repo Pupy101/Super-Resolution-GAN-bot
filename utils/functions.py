@@ -20,11 +20,12 @@ def denormolize(img, mean=0.5, std=0.5):
     return img * std + mean
 
 
-def preprocessing_image(dir, net):
+def preprocessing_image(dir, net, device):
     images = os.listdir(dir)
-    image = Image.open(images[0])
-    os.remove(os.path.join(dir, images[0]))
-    image = transform(image).unsqueeze(0)
+    img_path = os.path.join(dir, images[0])
+    image = Image.open(img_path)
+    os.remove(img_path)
+    image = transform(image).unsqueeze(0).to(device)
     with torch.no_grad():
         output = denormolize(net(image).squeeze(0).permute(1, 2, 0).numpy())
     return output

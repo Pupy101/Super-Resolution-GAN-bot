@@ -76,7 +76,7 @@ async def scan_message(msg: types.Message):
     urlretrieve(f'https://api.telegram.org/file/bot{API_TOKEN}/{fi}', f'./files/{str(msg.from_user.id)+ext}')
     await bot.send_message(msg.from_user.id, 'Файл успешно сохранён')
     await bot.send_message(msg.from_user.id, 'Начинается обработка')
-    preprocessing_image('./files', model)
+    preprocessing_image('./files', model, device)
 
     if os.listdir('.//result//'):
         await bot.send_photo(msg.from_user.id, 'Файл успешно сохранён')
