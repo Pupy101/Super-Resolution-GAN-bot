@@ -84,6 +84,7 @@ async def scan_message(msg: types.Message):
         name_file, ext = os.path.splitext(image)
         with open(os.path.join('./result', image), 'rb') as photo:
             await bot.send_photo(msg.from_user.id, photo)
+            os.remove(os.path.join('./result', image))
 
 
 if __name__ == '__main__':
