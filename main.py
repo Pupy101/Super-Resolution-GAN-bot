@@ -2,13 +2,23 @@ import os
 import logging
 
 import gdown
+import torch
 
 from urllib.request import urlretrieve
 from aiogram import Bot, Dispatcher, executor, types
 from utils.data_for_bot import *
+from utils.functions import preprocessing_image
 from model import Generator, device
 
 model = Generator()
+model.load_state_dict(torch.load('./pretrained_models/generator.pt'))
+model.to(device)
+
+if not os.path.exists('.//result//'):
+    os.mkdir('result')
+if not os.path.exists('./files/'):
+    os.mkdir('files')
+
 
 # Set button
 button_hi = types.KeyboardButton('Привет! 👋\nРасскажи о себе')
@@ -66,6 +76,7 @@ async def scan_message(msg: types.Message):
     urlretrieve(f'https://api.telegram.org/file/bot{API_TOKEN}/{fi}', f'./files/{str(msg.from_user.id)+ext}')
     await bot.send_message(msg.from_user.id, 'Файл успешно сохранён')
     await bot.send_message(msg.from_user.id, 'Начинается обработка')
+    preprocessing_image('./files', model)
 
     if os.listdir('.//result//'):
         await bot.send_photo(msg.from_user.id, 'Файл успешно сохранён')

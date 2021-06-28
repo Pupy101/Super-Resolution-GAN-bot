@@ -1,4 +1,5 @@
 import os
+import gdown
 
 weights = {
     'url': 'https://drive.google.com/uc?id=1LQL8vtSBbemaNwwkJFJAINzNVKheIv93',
