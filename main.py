@@ -69,17 +69,21 @@ async def scan_message(msg: types.Message):
         document_id = msg.document.file_id
     except:
         document_id = msg.photo[-1].file_id
-    print(document_id)
     file_info = await bot.get_file(document_id)
     fi = file_info.file_path
     name, ext = os.path.splitext(msg.document.file_name)
     urlretrieve(f'https://api.telegram.org/file/bot{API_TOKEN}/{fi}', f'./files/{str(msg.from_user.id)+ext}')
+    file_name = f'{str(msg.from_user.id)+ext}'
     await bot.send_message(msg.from_user.id, 'Файл успешно сохранён')
     await bot.send_message(msg.from_user.id, 'Начинается обработка')
-    preprocessing_image('./files', model, device)
+    preprocessing_image('./files', model, device, file_name)
+
 
     if os.listdir('.//result//'):
-        await bot.send_photo(msg.from_user.id, 'Файл успешно сохранён')
+        image = os.listdir('.//result//')[0]
+        name_file, ext = os.path.splitext(image)
+        with open(os.path.join('./result', image), 'rb') as photo:
+            await bot.send_photo(msg.from_user.id, photo)
 
 
 if __name__ == '__main__':
