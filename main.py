@@ -59,7 +59,6 @@ async def scan_message(msg: types.Message):
     try:
         document_id = msg.document.file_id
     except:
-        print(1111111111111111111111111111111111)
         document_id = msg.photo[-1].file_id
     file_info = await bot.get_file(document_id)
     fi = file_info.file_path
