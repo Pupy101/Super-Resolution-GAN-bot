@@ -59,10 +59,11 @@ async def scan_message(msg: types.Message):
     try:
         document_id = msg.document.file_id
     except:
+        print(1111111111111111111111111111111111)
         document_id = msg.photo[-1].file_id
     file_info = await bot.get_file(document_id)
     fi = file_info.file_path
-    name, ext = os.path.splitext(msg.document.file_name)
+    name, ext = os.path.splitext(file_info['file_path'].split('/')[-1])
     urlretrieve(f'https://api.telegram.org/file/bot{API_TOKEN}/{fi}', f'./files/{str(msg.from_user.id)+ext}')
     file_name = f'{str(msg.from_user.id)+ext}'
     await bot.send_message(msg.from_user.id, 'Файл успешно сохранён и нейросеть начала его обрабатывать')
