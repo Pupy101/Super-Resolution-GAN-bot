@@ -1,9 +1,5 @@
-import torch
-
 from torch import nn
 from utils.model_blocks import ResidualBlock
-
-device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 
 class Generator(nn.Module):
@@ -44,3 +40,7 @@ class Generator(nn.Module):
         out = self.conv_pixelx2(out)
         out = self.last_layers(out)
         return out
+
+    @property
+    def device(self):
+        return next(self.parameters()).device
