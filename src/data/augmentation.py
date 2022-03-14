@@ -34,7 +34,7 @@ large_image_transform = T.Compose(
 )
 small_image_transform = T.Compose(
     [
-        T.Resize(128),
+        T.Resize(112),
         T.ToTensor(),
         T.Normalize(MEAN, STD),
     ]
