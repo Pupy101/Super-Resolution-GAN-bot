@@ -105,7 +105,7 @@ def train_one_epoch(
         avg_loss_mse += mse_loss.item()
         avg_loss_vgg += mse_loss.item()
         # bce loss
-        label = torch.ones(small_image.size(0), device=device)
+        label = torch.ones(small_image.size(0), device=device, dtype=torch.long)
         output_gen = model.generator(small_image)
         output_dis = model.discriminator(output_gen)
         loss_bce = criterion.generator.bce(output_dis, label)
@@ -155,12 +155,12 @@ def evaluate_one_epoch(
 
         # discriminator
         # real images
-        label = torch.ones(small_image.size(0), device=device)
+        label = torch.ones(small_image.size(0), device=device, dtype=torch.long)
         output_dis = model.discriminator(large_image)
         real_loss = criterion.discriminator(output_dis, label)
         avg_loss_dis += real_loss.item()
         # fake images
-        label = torch.zeros(small_image.size(0), device=device)
+        label = torch.zeros(small_image.size(0), device=device, dtype=torch.long)
         fake_image = model.generator(small_image)
         output_dis = model.discriminator(fake_image)
         fake_loss = criterion.discriminator(output_dis, label)
@@ -176,7 +176,7 @@ def evaluate_one_epoch(
         avg_loss_mse += mse_loss.item()
         avg_loss_vgg += mse_loss.item()
         # bce loss
-        label = torch.ones(small_image.size(0), device=device)
+        label = torch.ones(small_image.size(0), device=device, dtype=torch.long)
         output_gen = model.generator(small_image)
         output_dis = model.discriminator(output_gen)
         loss_bce = criterion.generator.bce(output_dis, label)
