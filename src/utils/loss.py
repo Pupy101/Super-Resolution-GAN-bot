@@ -12,8 +12,8 @@ class VGGLoss(nn.Module):
         self.loss = nn.MSELoss()
 
     def forward(self, predict: Tensor, target: Tensor) -> Tensor:
-        pred_logits = self.net(predict)
-        target_logits = self.net(target)
+        pred_logits = self.vgg(predict)
+        target_logits = self.vgg(target)
         return self.loss(pred_logits, target_logits)
 
 
