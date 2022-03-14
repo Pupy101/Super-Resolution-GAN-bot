@@ -103,7 +103,7 @@ def train_one_epoch(
         mse_loss = loss_mse_vgg.loss2
         avg_loss_gen += vgg_loss.item() + mse_loss.item()
         avg_loss_mse += mse_loss.item()
-        avg_loss_vgg += mse_loss.item()
+        avg_loss_vgg += vgg_loss.item()
         # bce loss
         label = torch.ones(small_image.size(0), device=device, dtype=torch.long)
         output_gen = model.generator(small_image)
@@ -121,7 +121,7 @@ def train_one_epoch(
         f"Generator Loss: {avg_loss_gen / count:7.3f}\t"
         f"Gen GANLoss: {avg_loss_bce / count:7.3f}  "
         f"Gen MSELoss: {avg_loss_mse / count:7.3f}  "
-        f"Gen VGGLoss: {avg_loss_vgg / count:7.3f} "
+        f"Gen VGGLoss: {avg_loss_vgg / count:7.3f}"
     )
     return MetricResult(
         discriminator=DiscriminatorLoss(avg=avg_loss_dis),
@@ -174,7 +174,7 @@ def evaluate_one_epoch(
         mse_loss = loss_mse_vgg.loss2
         avg_loss_gen += vgg_loss.item() + mse_loss.item()
         avg_loss_mse += mse_loss.item()
-        avg_loss_vgg += mse_loss.item()
+        avg_loss_vgg += vgg_loss.item()
         # bce loss
         label = torch.ones(small_image.size(0), device=device, dtype=torch.long)
         output_gen = model.generator(small_image)
