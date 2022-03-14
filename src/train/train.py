@@ -102,7 +102,7 @@ def train_one_epoch(
         vgg_loss = loss_mse_vgg.loss1
         mse_loss = loss_mse_vgg.loss2
         avg_loss_gen += vgg_loss.item() + mse_loss.item()
-        avg_loss_mse += loss_mse_vgg.item()
+        avg_loss_mse += mse_loss.item()
         avg_loss_vgg += mse_loss.item()
         # bce loss
         label = torch.ones(small_image.size(0), device=device)
@@ -173,7 +173,7 @@ def evaluate_one_epoch(
         vgg_loss = loss_mse_vgg.loss1
         mse_loss = loss_mse_vgg.loss2
         avg_loss_gen += vgg_loss.item() + mse_loss.item()
-        avg_loss_mse += loss_mse_vgg.item()
+        avg_loss_mse += mse_loss.item()
         avg_loss_vgg += mse_loss.item()
         # bce loss
         label = torch.ones(small_image.size(0), device=device)
