@@ -25,7 +25,7 @@ class SuperResolutionDataset(Dataset):
         image_copy = image.copy()
         large_image = self.transforms.large(image)
         small_image = self.transforms.small(image_copy)
-        return {"large": large_image, "small": small_image}
+        return large_image, small_image
 
     @staticmethod
     def _find_all_images(paths_to_directories: List[str]) -> List[str]:
