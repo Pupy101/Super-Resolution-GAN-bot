@@ -78,12 +78,12 @@ def train_one_epoch(
         # discriminator
         optimizer.discriminator.zero_grad()
         # real images
-        label = torch.ones(small_image.size(0), device=device)
+        label = torch.ones(small_image.size(0), device=device, dtype=torch.long)
         output_dis = model.discriminator(large_image)
         real_loss = criterion.discriminator(output_dis, label)
         avg_loss_dis += real_loss.item()
         # fake images
-        label = torch.zeros(small_image.size(0), device=device)
+        label = torch.zeros(small_image.size(0), device=device, dtype=torch.long)
         with torch.no_grad():
             fake_image = model.generator(small_image)
         output_dis = model.discriminator(fake_image)
@@ -145,8 +145,8 @@ def evaluate_one_epoch(
     avg_loss_bce = 0
     count = 0
 
-    model.discriminator.train()
-    model.generator.train()
+    model.discriminator.eval()
+    model.generator.eval()
 
     for large_image, small_image in tqdm(loader, leave=False):
         count += 1
