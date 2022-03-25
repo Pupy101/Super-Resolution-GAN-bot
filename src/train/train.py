@@ -45,7 +45,12 @@ def train_model(
         if train_avg_loss > eval_avg_loss and eval_avg_loss < min_eval_loss:
             min_eval_loss = eval_avg_loss
             torch.save(
-                model.state_dict(), join_path("./weights", f"Model_on_{i+1}.pth")
+                model.discriminator.state_dict(),
+                join_path("./weights", f"Model_DIS_{i+1}.pth"),
+            )
+            torch.save(
+                model.generator.state_dict(),
+                join_path("./weights", f"Model_GEN_{i+1}.pth"),
             )
     print(
         f"Best metric Train loss: {train_avg_loss:10.5f}\t"
