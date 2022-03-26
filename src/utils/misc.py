@@ -1,10 +1,10 @@
 from pathlib import Path
-from typing import List, Optional, Tuple, Union
+from typing import Callable, List, Optional, Tuple, Union
 
 
 from numpy import ndarray
 from PIL import Image
-from torch import tensor, Tensor
+from torch import nn, tensor, Tensor
 
 from src.data.augmentation import inference
 
@@ -40,3 +40,27 @@ def prepare_image(path_to_image: str) -> Tensor:
 def write_image(image: ndarray, target_path: Union[str, Path]) -> None:
     image = Image.fromarray(image)
     image.save(target_path)
+
+
+@torch.no_grad()
+def upsample_image_torch(model: nn.Module, image: Tensor) -> ndarray:
+    image = image.unsqueeze(0).to(model.device)
+    super_image = model(image)
+    image = denormolize(super_image.cpu())
+    return image
+
+
+@torch.no_grad()
+def upsample_image_numpy(model: nn.Module, image: Tensor) -> ndarray:
+    image = image.unsqueeze(0).to(model.device)
+    super_image = model(image)
+    image = denormolize(super_image.cpu())
+
+
+def upsample_image_file(
+    model: nn.Module, image: str, valid_transform: Callable
+) -> ndarray:
+    image = Image.open(image)
+    image = valid_transform(image)
+    image = upsample_image_torch(model, image)
+    return image
