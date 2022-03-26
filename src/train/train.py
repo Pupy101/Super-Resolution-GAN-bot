@@ -54,7 +54,7 @@ def train_model(
             )
     print(
         f"Best metric Train loss: {train_avg_loss:10.5f}\t"
-        "Eval loss: {eval_avg_loss:10.5f}"
+        f"Eval loss: {eval_avg_loss:10.5f}"
     )
 
 
