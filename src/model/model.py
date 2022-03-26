@@ -66,4 +66,4 @@ class SuperResolutionGenerator(nn.Module):
 
     @property
     def device(self) -> device:
-        return next(self.in_layer.parameters()).device
+        return next(self.parameters()).device
