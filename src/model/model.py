@@ -1,12 +1,23 @@
-from typing import Optional
+"""Module with super resolution network."""
 
-from torch import device, nn, Tensor
+import torch
+
+from torch import nn, Tensor
 
 from .layers import DWConv2d, DWResidualBlock
 
 
 class SuperResolutionGenerator(nn.Module):
-    def __init__(self, n_increase: Optional[int] = 2):
+    """Super resolution network."""
+
+    def __init__(self, n_increase: int = 2):
+        """
+        Init network.
+
+        Parameters
+        ----------
+        n_increase : increasing resolution multiplier
+        """
         assert not n_increase % 2, "Increase must be multiple of 2"
         super().__init__()
         self.residual_1 = nn.Sequential(
@@ -42,6 +53,17 @@ class SuperResolutionGenerator(nn.Module):
 
     @staticmethod
     def _make_conv_pixel_shuffle(increase: int) -> nn.Module:
+        """
+        Create incrasing layers.
+
+        Parameters
+        ----------
+        increase : increasing resolution multiplier
+
+        Returns
+        -------
+        Increasing layers
+        """
         layers = []
         for _ in range(increase // 2):
             layers.extend(
@@ -57,6 +79,17 @@ class SuperResolutionGenerator(nn.Module):
         return nn.Sequential(*layers)
 
     def forward(self, x: Tensor) -> Tensor:
+        """
+        Network forward pass.
+
+        Parameters
+        ----------
+        x : input tensor
+
+        Returns
+        -------
+        output tensor
+        """
         x1 = self.residual_1(x)
         x2 = self.residual_2(x1)
         x = self.residual_3(x1 + x2)
@@ -65,5 +98,12 @@ class SuperResolutionGenerator(nn.Module):
         return x
 
     @property
-    def device(self) -> device:
+    def device(self) -> torch.device:
+        """
+        Get network device.
+
+        Returns
+        -------
+        network device
+        """
         return next(self.parameters()).device

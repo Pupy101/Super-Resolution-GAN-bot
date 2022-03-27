@@ -1,3 +1,5 @@
+"""Train model."""
+
 import os
 
 from os.path import join as join_path
@@ -26,6 +28,18 @@ def train_model(
     optimizer: Optimizer,
     device: torch.device,
 ):
+    """
+    Train super resolution model.
+
+    Parameters
+    ----------
+    n_epoch : count epoch
+    model : models with generator and discriminator
+    loaders : loaders with train and validation
+    critetion : criterions with loss function for generator and discriminator
+    optimizer : optimizers for generator and discriminator
+    device : device for training
+    """
     min_eval_loss = float("inf")
     os.makedirs("weights", exist_ok=True)
     for i in range(n_epoch):
@@ -45,12 +59,12 @@ def train_model(
         if train_avg_loss > eval_avg_loss and eval_avg_loss < min_eval_loss:
             min_eval_loss = eval_avg_loss
             torch.save(
-                model.discriminator.state_dict(),
-                join_path("./weights", f"Model_DIS_{i+1}.pth"),
+                model.state_dict(),
+                join_path("./weights", f"Model_{i+1}.pth"),
             )
             torch.save(
-                model.generator.state_dict(),
-                join_path("./weights", f"Model_GEN_{i+1}.pth"),
+                optimizer.state_dict(),
+                join_path("./weights", f"Optimizer_{i+1}.pth"),
             )
     print(
         f"Best metric Train loss: {train_avg_loss:10.5f}\t"
@@ -65,6 +79,21 @@ def train_one_epoch(
     optimizer: Optimizer,
     device: torch.device,
 ) -> MetricResult:
+    """
+    Train model.
+
+    Parameters
+    ----------
+    model : models with generator and discriminator
+    loader : training loader
+    criterion : criterions with loss function for generator and discriminator
+    optimizer : optimizers for generator and discriminator
+    device : device for training
+
+    Returns
+    -------
+    all losses
+    """
     avg_loss_gen = 0
     avg_loss_dis = 0
     avg_loss_mse = 0
@@ -129,9 +158,12 @@ def train_one_epoch(
         f"Gen VGGLoss: {avg_loss_vgg / count:7.3f}"
     )
     return MetricResult(
-        discriminator=DiscriminatorLoss(avg=avg_loss_dis),
+        discriminator=DiscriminatorLoss(avg=avg_loss_dis / count),
         generator=GeneratorLoss(
-            avg=avg_loss_gen, bce=avg_loss_bce, mse=avg_loss_mse, vgg=avg_loss_vgg
+            avg=avg_loss_gen / count,
+            bce=avg_loss_bce / count,
+            mse=avg_loss_mse / count,
+            vgg=avg_loss_vgg / count,
         ),
     )
 
@@ -143,6 +175,20 @@ def evaluate_one_epoch(
     criterion: Criterion,
     device: torch.device,
 ) -> MetricResult:
+    """
+    Validate model.
+
+    Parameters
+    ----------
+    model : models with generator and discriminator
+    loader : validation loader
+    criterion : criterions with loss function for generator and discriminator
+    device : device for validation
+
+    Returns
+    -------
+    all losses
+    """
     avg_loss_gen = 0
     avg_loss_dis = 0
     avg_loss_mse = 0
@@ -195,8 +241,11 @@ def evaluate_one_epoch(
         f"Gen VGGLoss: {avg_loss_vgg / count:7.3f} "
     )
     return MetricResult(
-        discriminator=DiscriminatorLoss(avg=avg_loss_dis),
+        discriminator=DiscriminatorLoss(avg=avg_loss_dis / count),
         generator=GeneratorLoss(
-            avg=avg_loss_gen, bce=avg_loss_bce, mse=avg_loss_mse, vgg=avg_loss_vgg
+            avg=avg_loss_gen / count,
+            bce=avg_loss_bce / count,
+            mse=avg_loss_mse / count,
+            vgg=avg_loss_vgg / count,
         ),
     )

@@ -1,3 +1,5 @@
+"""Module with augmentations."""
+
 from torchvision import transforms as T
 
 from src.datacls import Augmentation, InferenceAugmentation
@@ -58,6 +60,8 @@ valid = Augmentation(
 )
 
 inference = InferenceAugmentation(
+    mean=MEAN,
+    std=STD,
     main=T.Compose([T.ToTensor(), T.Normalize(MEAN, STD)]),
     resize=T.Resize(512),
 )

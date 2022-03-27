@@ -1,7 +1,7 @@
 from dataclasses import dataclass
-from typing import Any, List
+from typing import Any, Dict, List
 
-from torch import nn, Tensor
+from torch import nn, optim, Tensor, device
 from torch.utils.data import Dataset, DataLoader
 from torchvision import transforms as T
 
@@ -17,6 +17,8 @@ class Augmentation:
 
 @dataclass
 class InferenceAugmentation:
+    mean: List[float]
+    std: List[float]
     main: T.Compose
     resize: T.Resize
 
@@ -28,15 +30,30 @@ class GANParameters:
 
 
 @dataclass
-class Model(GANParameters):
+class TorchModuleSubclass(GANParameters):
+    def state_dict(self) -> Dict[str, Dict[str, Tensor]]:
+        return {
+            "generator": self.generator.state_dict(),
+            "discriminator": self.discriminator.state_dict(),
+        }
+
+    def load_state_dict(self, weight: Dict[str, Dict[str, Tensor]]) -> None:
+        assert "generator" in weight, "Not right weights. Not founded generator"
+        assert "discriminator" in weight, "Not right weights. Not founded discriminator"
+        self.generator.load_state_dict(weight["generator"])
+        self.discriminator.load_state_dict(weight["discriminator"])
+
+
+@dataclass
+class Model(TorchModuleSubclass):
     generator: nn.Module
     discriminator: nn.Module
 
 
 @dataclass
-class Optimizer(GANParameters):
-    generator: nn.Module
-    discriminator: nn.Module
+class Optimizer(TorchModuleSubclass):
+    generator: optim.Optimizer
+    discriminator: optim.Optimizer
 
 
 @dataclass
@@ -86,3 +103,13 @@ class GeneratorLoss:
 class MetricResult:
     discriminator: DiscriminatorLoss
     generator: GeneratorLoss
+
+
+@dataclass  # src.inference.consumer
+class InferenceConfig:
+    model: nn.Module
+    weight: str
+    device: device
+    batch_size: int
+    input_dir: str
+    target_dir: str
