@@ -1,5 +1,7 @@
 """Module with super resolution network."""
 
+from typing import List
+
 import torch
 
 from torch import nn, Tensor
@@ -31,6 +33,7 @@ class SuperResolutionGenerator(nn.Module):
             nn.PReLU(),
         )
         self.residual_2 = nn.Sequential(
+            nn.BatchNorm2d(num_features=64),
             DWResidualBlock(in_channels=64),
             nn.PReLU(),
             DWResidualBlock(in_channels=64),
@@ -42,11 +45,24 @@ class SuperResolutionGenerator(nn.Module):
             DWResidualBlock(in_channels=64),
         )
         self.residual_3 = nn.Sequential(
-            DWConv2d(in_channels=64, out_channels=64),
+            nn.BatchNorm2d(num_features=64),
+            DWResidualBlock(in_channels=64),
+            nn.PReLU(),
+            DWResidualBlock(in_channels=64),
+            nn.PReLU(),
+            DWResidualBlock(in_channels=64),
+            nn.PReLU(),
+            DWResidualBlock(in_channels=64),
+            nn.PReLU(),
+            DWResidualBlock(in_channels=64),
             nn.BatchNorm2d(num_features=64),
         )
         self.residual_pixel_shuffle = self._make_conv_pixel_shuffle(n_increase)
         self.output_residual = nn.Sequential(
+            DWResidualBlock(in_channels=64),
+            nn.PReLU(),
+            DWResidualBlock(in_channels=64),
+            nn.PReLU(),
             DWConv2d(in_channels=64, out_channels=3, kernel_size=9, padding=4),
             nn.Tanh(),
         )
@@ -64,7 +80,8 @@ class SuperResolutionGenerator(nn.Module):
         -------
         Increasing layers
         """
-        layers = []
+        layers: List[nn.Module] = []
+        layers.append(nn.BatchNorm2d(64))
         for _ in range(increase // 2):
             layers.extend(
                 [
@@ -92,10 +109,10 @@ class SuperResolutionGenerator(nn.Module):
         """
         x1 = self.residual_1(x)
         x2 = self.residual_2(x1)
-        x = self.residual_3(x1 + x2)
-        x = self.residual_pixel_shuffle(x)
-        x = self.output_residual(x)
-        return x
+        x3 = self.residual_3(x1 + x2)
+        x4 = self.residual_pixel_shuffle(x1 + x2 + x3)
+        x5 = self.output_residual(x4)
+        return x5
 
     @property
     def device(self) -> torch.device:
