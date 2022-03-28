@@ -1,13 +1,14 @@
 """Module with functions."""
 
 from pathlib import Path
-from typing import Callable, List, Optional, Tuple, Union
+from random import randint
+from typing import List, Optional, Tuple, Union
 
 import torch
 
 from numpy import ndarray
 from PIL import Image
-from torch import nn, Tensor
+from torch import Tensor
 
 from src.data.augmentation import inference
 from src.model import SuperResolutionGenerator
@@ -138,3 +139,41 @@ def upsample_image_file(model: SuperResolutionGenerator, path_to_image: str) -> 
     """
     image = prepare_image(path_to_image)
     return upsample_image_torch(model, image)
+
+
+def get_patch(
+    images: Tensor,
+    indexes_height: Optional[List[int]] = None,
+    indexes_weight: Optional[List[int]] = None,
+) -> Tuple[Tensor, List[int], List[int]]:
+    """
+    Get patch from images.
+
+    Parameters
+    ----------
+    images : batch of images
+    indexes : indexes for patches
+
+    Returns
+    -------
+    random pathes from images
+    """
+    batch_size = images.size(0)
+    height, weight = images.size(2), images.size(3)
+    max_height, max_weight = height - 225, weight - 225
+    batch = []
+    if indexes_height is None:
+        indexes_height = [randint(0, max_height) for _ in range(batch_size)]
+    if indexes_weight is None:
+        indexes_weight = [randint(0, max_weight) for _ in range(batch_size)]
+
+    for i in range(batch_size):
+        batch.append(
+            images[
+                i : i + 1,
+                :,
+                indexes_height[i] : indexes_height[i] + 244,
+                indexes_weight[i] : indexes_weight[i] + 224,
+            ]
+        )
+    return torch.cat(batch), indexes_height, indexes_weight

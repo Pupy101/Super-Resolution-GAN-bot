@@ -18,6 +18,7 @@ from src.datacls import (
     Model,
     Optimizer,
 )
+from src.utils.misc import get_patch
 
 
 def train_model(
@@ -78,6 +79,7 @@ def train_one_epoch(
     criterion: Criterion,
     optimizer: Optimizer,
     device: torch.device,
+    patch_gan: bool = False,
 ) -> MetricResult:
     """
     Train model.
@@ -89,6 +91,7 @@ def train_one_epoch(
     criterion : criterions with loss function for generator and discriminator
     optimizer : optimizers for generator and discriminator
     device : device for training
+    patch_gan : use only patch from image to compute gan
 
     Returns
     -------
@@ -113,14 +116,22 @@ def train_one_epoch(
         optimizer.discriminator.zero_grad()
         # real images
         label = torch.ones(small_image.size(0), device=device, dtype=torch.long)
-        output_dis = model.discriminator(large_image)
+        if patch_gan:
+            patched_images, index_height, index_weight = get_patch(large_image)
+        else:
+            patched_images = large_image
+        output_dis = model.discriminator(patched_images)
         real_loss = criterion.discriminator(output_dis, label)
         avg_loss_dis += real_loss.item()
         # fake images
         label = torch.zeros(small_image.size(0), device=device, dtype=torch.long)
         with torch.no_grad():
             fake_image = model.generator(small_image)
-        output_dis = model.discriminator(fake_image)
+        if patch_gan:
+            patched_images, *_ = get_patch(fake_image, index_height, index_weight)
+        else:
+            patched_images = fake_image
+        output_dis = model.discriminator(patched_images)
         fake_loss = criterion.discriminator(output_dis, label)
         avg_loss_dis += fake_loss.item()
 
@@ -174,6 +185,7 @@ def evaluate_one_epoch(
     loader: DataLoader,
     criterion: Criterion,
     device: torch.device,
+    patch_gan: bool = False,
 ) -> MetricResult:
     """
     Validate model.
@@ -184,6 +196,7 @@ def evaluate_one_epoch(
     loader : validation loader
     criterion : criterions with loss function for generator and discriminator
     device : device for validation
+    patch_gan : use only patch from image to compute gan
 
     Returns
     -------
@@ -207,13 +220,21 @@ def evaluate_one_epoch(
         # discriminator
         # real images
         label = torch.ones(small_image.size(0), device=device, dtype=torch.long)
-        output_dis = model.discriminator(large_image)
+        if patch_gan:
+            patched_images, index_height, index_weight = get_patch(large_image)
+        else:
+            patched_images = large_image
+        output_dis = model.discriminator(patched_images)
         real_loss = criterion.discriminator(output_dis, label)
         avg_loss_dis += real_loss.item()
         # fake images
         label = torch.zeros(small_image.size(0), device=device, dtype=torch.long)
         fake_image = model.generator(small_image)
-        output_dis = model.discriminator(fake_image)
+        if patch_gan:
+            patched_images, *_ = get_patch(fake_image, index_height, index_weight)
+        else:
+            patched_images = fake_image
+        output_dis = model.discriminator(patched_images)
         fake_loss = criterion.discriminator(output_dis, label)
         avg_loss_dis += fake_loss.item()
 
