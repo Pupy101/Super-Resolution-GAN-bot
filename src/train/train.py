@@ -28,6 +28,7 @@ def train_model(
     critetion: Criterion,
     optimizer: Optimizer,
     device: torch.device,
+    patch_gan: bool = False,
 ):
     """
     Train super resolution model.
@@ -40,21 +41,27 @@ def train_model(
     critetion : criterions with loss function for generator and discriminator
     optimizer : optimizers for generator and discriminator
     device : device for training
+    patch_gan : use only patch from image to compute gan
     """
     min_eval_loss = float("inf")
     os.makedirs("weights", exist_ok=True)
     for i in range(n_epoch):
         print(f"\tEpoch {i+1}/{n_epoch}")
-        train_metric: MetricResult = train_one_epoch(
+        train_metric = train_one_epoch(
             model=model,
             loader=loaders.train,
             criterion=critetion,
             optimizer=optimizer,
             device=device,
+            patch_gan=patch_gan,
         )
         train_avg_loss = train_metric.generator.avg
-        eval_metric: MetricResult = evaluate_one_epoch(
-            model=model, loader=loaders.valid, criterion=critetion, device=device
+        eval_metric = evaluate_one_epoch(
+            model=model,
+            loader=loaders.valid,
+            criterion=critetion,
+            device=device,
+            patch_gan=patch_gan,
         )
         eval_avg_loss = eval_metric.generator.avg
         if train_avg_loss > eval_avg_loss and eval_avg_loss < min_eval_loss:

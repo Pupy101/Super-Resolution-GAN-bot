@@ -10,8 +10,8 @@ STD = [0.5, 0.5, 0.5]
 
 train_image_transform = T.Compose(
     [
-        T.Resize(270),
-        T.RandomCrop((224, 224)),
+        T.Resize(512),
+        T.RandomCrop((448, 448)),
         T.RandomHorizontalFlip(),
         T.RandomVerticalFlip(),
         T.RandomApply(
@@ -24,8 +24,8 @@ train_image_transform = T.Compose(
 )
 valid_image_transform = T.Compose(
     [
-        T.Resize(270),
-        T.CenterCrop((224, 224)),
+        T.Resize(512),
+        T.RandomCrop((448, 448)),
     ]
 )
 large_image_transform = T.Compose(
@@ -36,7 +36,7 @@ large_image_transform = T.Compose(
 )
 small_image_transform = T.Compose(
     [
-        T.Resize(112),
+        T.Resize(224),
         T.ToTensor(),
         T.Normalize(MEAN, STD),
     ]
