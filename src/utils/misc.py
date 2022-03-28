@@ -172,7 +172,7 @@ def get_patch(
             images[
                 i : i + 1,
                 :,
-                indexes_height[i] : indexes_height[i] + 244,
+                indexes_height[i] : indexes_height[i] + 224,
                 indexes_weight[i] : indexes_weight[i] + 224,
             ]
         )
