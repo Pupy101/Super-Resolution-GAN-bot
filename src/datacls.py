@@ -69,6 +69,22 @@ class TorchModuleSubclass(GANParameters):
         self.generator.load_state_dict(weight["generator"])
         self.discriminator.load_state_dict(weight["discriminator"])
 
+    def to(self, device: torch.device) -> "TorchModuleSubclass":
+        """
+        Move to another device
+
+        Parameters
+        ----------
+        device : target device
+
+        Returns
+        -------
+        instance on target device
+        """
+        self.generator.to(device)
+        self.discriminator.to(device)
+        return self
+
 
 @dataclass
 class Model(TorchModuleSubclass):
