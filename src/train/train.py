@@ -118,16 +118,41 @@ def train_one_epoch(
     model.discriminator.train()
     model.generator.train()
     length_dataloader = len(loader)
-
     loss_dis = 0
     loss_gen = 0
     optimizer.discriminator.zero_grad()
     optimizer.generator.zero_grad()
 
-    for i, (large_image, small_image) in tqdm(enumerate(loader, 1), leave=False):
+    for i, (large_image, small_image) in tqdm(
+        enumerate(loader, 1), leave=False, total=length_dataloader
+    ):
         count += 1
         large_image = large_image.to(device)
         small_image = small_image.to(device)
+
+        # generator
+        # mse and vgg loss
+        output_gen = model.generator(small_image)
+        loss_mse_vgg = criterion.generator.mse_vgg(output_gen, large_image)
+        vgg_loss = loss_mse_vgg.loss1
+        mse_loss = loss_mse_vgg.loss2
+        avg_loss_gen += vgg_loss.item() + mse_loss.item()
+        avg_loss_mse += mse_loss.item()
+        avg_loss_vgg += vgg_loss.item()
+        # bce loss
+        label = torch.ones(small_image.size(0), device=device, dtype=torch.long)
+        output_gen = model.generator(small_image)
+        output_dis = model.discriminator(output_gen)
+        loss_bce = criterion.generator.bce(output_dis, label)
+        avg_loss_gen += 1e-3 * loss_bce.item()
+        avg_loss_bce += loss_bce.item()
+
+        loss_gen += vgg_loss + mse_loss + 1e-3 * loss_bce
+        if accumulation == 1 or i % accumulation == 0 or i == length_dataloader:
+            loss_gen.backward()
+            optimizer.generator.step()
+            optimizer.generator.zero_grad()
+            loss_gen = 0
 
         # discriminator
         # real images
@@ -158,30 +183,6 @@ def train_one_epoch(
             optimizer.discriminator.zero_grad()
             loss_dis = 0
 
-        # generator
-        # mse and vgg loss
-        output_gen = model.generator(small_image)
-        loss_mse_vgg = criterion.generator.mse_vgg(output_gen, large_image)
-        vgg_loss = loss_mse_vgg.loss1
-        mse_loss = loss_mse_vgg.loss2
-        avg_loss_gen += vgg_loss.item() + mse_loss.item()
-        avg_loss_mse += mse_loss.item()
-        avg_loss_vgg += vgg_loss.item()
-        # bce loss
-        label = torch.ones(small_image.size(0), device=device, dtype=torch.long)
-        output_gen = model.generator(small_image)
-        output_dis = model.discriminator(output_gen)
-        loss_bce = criterion.generator.bce(output_dis, label)
-        avg_loss_gen += 1e-3 * loss_bce.item()
-        avg_loss_bce += loss_bce.item()
-
-        loss_gen += vgg_loss + mse_loss + 1e-3 * loss_bce
-        if accumulation == 1 or i % accumulation == 0 or i == length_dataloader:
-            loss_gen.backward()
-            optimizer.generator.step()
-            optimizer.generator.zero_grad()
-            loss_gen = 0
-
     print(
         f"TRAIN Discriminator Loss: {avg_loss_dis / count:7.3f}\t"
         f"Generator Loss: {avg_loss_gen / count:7.3f}\t"
@@ -206,7 +207,6 @@ def evaluate_one_epoch(
     loader: DataLoader,
     criterion: Criterion,
     device: torch.device,
-    accumulation: int = 1,
     patch_gan: bool = False,
 ) -> MetricResult:
     """
@@ -230,6 +230,9 @@ def evaluate_one_epoch(
     avg_loss_vgg = 0
     avg_loss_bce = 0
     count = 0
+    length_dataloader = len(loader)
+    loss_dis = 0
+    loss_gen = 0
 
     model.discriminator.eval()
     model.generator.eval()
@@ -238,6 +241,23 @@ def evaluate_one_epoch(
         count += 1
         large_image = large_image.to(device)
         small_image = small_image.to(device)
+
+        # generator
+        #  mse and vgg loss
+        output_gen = model.generator(small_image)
+        loss_mse_vgg = criterion.generator.mse_vgg(output_gen, large_image)
+        vgg_loss = loss_mse_vgg.loss1
+        mse_loss = loss_mse_vgg.loss2
+        avg_loss_gen += vgg_loss.item() + mse_loss.item()
+        avg_loss_mse += mse_loss.item()
+        avg_loss_vgg += vgg_loss.item()
+        # bce loss
+        label = torch.ones(small_image.size(0), device=device, dtype=torch.long)
+        output_gen = model.generator(small_image)
+        output_dis = model.discriminator(output_gen)
+        loss_bce = criterion.generator.bce(output_dis, label)
+        avg_loss_gen += 1e-3 * loss_bce.item()
+        avg_loss_bce += loss_bce.item()
 
         # discriminator
         # real images
@@ -260,22 +280,6 @@ def evaluate_one_epoch(
         fake_loss = criterion.discriminator(output_dis, label)
         avg_loss_dis += fake_loss.item()
 
-        # generator
-        #  mse and vgg loss
-        output_gen = model.generator(small_image)
-        loss_mse_vgg = criterion.generator.mse_vgg(output_gen, large_image)
-        vgg_loss = loss_mse_vgg.loss1
-        mse_loss = loss_mse_vgg.loss2
-        avg_loss_gen += vgg_loss.item() + mse_loss.item()
-        avg_loss_mse += mse_loss.item()
-        avg_loss_vgg += vgg_loss.item()
-        # bce loss
-        label = torch.ones(small_image.size(0), device=device, dtype=torch.long)
-        output_gen = model.generator(small_image)
-        output_dis = model.discriminator(output_gen)
-        loss_bce = criterion.generator.bce(output_dis, label)
-        avg_loss_gen += 1e-3 * loss_bce.item()
-        avg_loss_bce += loss_bce.item()
     print(
         f"EVAL Discriminator Loss: {avg_loss_dis / count:7.3f}\t"
         f"Generator Loss: {avg_loss_gen / count:7.3f}\t"
