@@ -7,7 +7,7 @@ from os.path import join as join_path
 import torch
 
 from torch.utils.data import DataLoader
-from tqdm import tqdm
+from tqdm.notebook import tqdm
 
 from src.datacls import (
     Criterion,
@@ -63,7 +63,6 @@ def train_model(
             loader=loaders.valid,
             criterion=critetion,
             device=device,
-            accumulation=accumulation,
             patch_gan=patch_gan,
         )
         eval_avg_loss = eval_metric.generator.avg
@@ -231,13 +230,11 @@ def evaluate_one_epoch(
     avg_loss_bce = 0
     count = 0
     length_dataloader = len(loader)
-    loss_dis = 0
-    loss_gen = 0
 
     model.discriminator.eval()
     model.generator.eval()
 
-    for large_image, small_image in tqdm(loader, leave=False):
+    for large_image, small_image in tqdm(loader, leave=False, total=length_dataloader):
         count += 1
         large_image = large_image.to(device)
         small_image = small_image.to(device)
