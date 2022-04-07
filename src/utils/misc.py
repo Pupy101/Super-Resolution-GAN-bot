@@ -143,8 +143,8 @@ def upsample_image_file(model: SuperResolutionGenerator, path_to_image: str) -> 
 
 def get_patch(
     images: Tensor,
-    indexes_height: Optional[List[int]] = None,
-    indexes_weight: Optional[List[int]] = None,
+    indxes_height: Optional[List[int]] = None,
+    indxes_weight: Optional[List[int]] = None,
 ) -> Tuple[Tensor, List[int], List[int]]:
     """
     Get patch from images.
@@ -152,7 +152,8 @@ def get_patch(
     Parameters
     ----------
     images : batch of images
-    indexes : indexes for patches
+    indxes_height : indexes height for patch
+    indxes_weight : indexes weight for patch
 
     Returns
     -------
@@ -162,18 +163,18 @@ def get_patch(
     height, weight = images.size(2), images.size(3)
     max_height, max_weight = height - 225, weight - 225
     batch = []
-    if indexes_height is None:
-        indexes_height = [randint(0, max_height) for _ in range(batch_size)]
-    if indexes_weight is None:
-        indexes_weight = [randint(0, max_weight) for _ in range(batch_size)]
+    if indxes_height is None:
+        indxes_height = [randint(0, max_height) for _ in range(batch_size)]
+    if indxes_weight is None:
+        indxes_weight = [randint(0, max_weight) for _ in range(batch_size)]
 
     for i in range(batch_size):
         batch.append(
             images[
                 i : i + 1,
                 :,
-                indexes_height[i] : indexes_height[i] + 224,
-                indexes_weight[i] : indexes_weight[i] + 224,
+                indxes_height[i] : indxes_height[i] + 224,
+                indxes_weight[i] : indxes_weight[i] + 224,
             ]
         )
-    return torch.cat(batch), indexes_height, indexes_weight
+    return torch.cat(batch), indxes_height, indxes_weight

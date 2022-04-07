@@ -71,7 +71,7 @@ class TorchModuleSubclass(GANParameters):
 
     def to(self, device: torch.device) -> "TorchModuleSubclass":
         """
-        Move to another device
+        Move to another device.
 
         Parameters
         ----------
