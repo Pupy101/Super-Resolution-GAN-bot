@@ -3,8 +3,7 @@
 from typing import List
 
 import torch
-
-from torch import nn, Tensor
+from torch import Tensor, nn
 
 from .layers import DWConv2d, DWResidualBlock
 

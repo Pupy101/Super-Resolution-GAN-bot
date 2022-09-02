@@ -1,6 +1,6 @@
 """Module with custom losses."""
 
-from torch import nn, Tensor
+from torch import Tensor, nn
 
 from src.datacls import CombinedLossOutput
 

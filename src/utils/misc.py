@@ -5,7 +5,6 @@ from random import randint
 from typing import List, Optional, Tuple, Union
 
 import torch
-
 from numpy import ndarray
 from PIL import Image
 from torch import Tensor

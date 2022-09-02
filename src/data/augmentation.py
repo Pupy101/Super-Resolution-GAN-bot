@@ -4,7 +4,6 @@ from torchvision import transforms as T
 
 from src.datacls import Augmentation, InferenceAugmentation
 
-
 MEAN = [0.5, 0.5, 0.5]
 STD = [0.5, 0.5, 0.5]
 

@@ -4,9 +4,8 @@ from dataclasses import dataclass
 from typing import Any, Dict, List
 
 import torch
-
 from torch import nn, optim
-from torch.utils.data import Dataset, DataLoader
+from torch.utils.data import DataLoader, Dataset
 from torchvision import transforms as T
 
 

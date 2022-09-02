@@ -1,18 +1,15 @@
 import argparse
 import os
-
 from asyncio import sleep
 from multiprocessing import Process
 from pathlib import Path
 from urllib.request import urlretrieve
 
 import torch
-
 from aiogram import Bot, Dispatcher, executor, types
 
 from src.inference.consumer import SuperResolutionConsumer
 from src.model import SuperResolutionGenerator
-
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()

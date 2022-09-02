@@ -1,8 +1,7 @@
 """Module with layers based on DepthWise Convolutions."""
 
 import torch
-
-from torch import nn, Tensor
+from torch import Tensor, nn
 
 
 class DWConv2d(nn.Module):

@@ -1,7 +1,6 @@
 """Module with torch dataset for super resolution network."""
 
 import os
-
 from os.path import join as join_path
 from typing import List, Tuple
 

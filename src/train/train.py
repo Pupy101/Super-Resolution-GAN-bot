@@ -1,11 +1,9 @@
 """Train model."""
 
 import os
-
 from os.path import join as join_path
 
 import torch
-
 from torch.utils.data import DataLoader
 from tqdm.notebook import tqdm
 
