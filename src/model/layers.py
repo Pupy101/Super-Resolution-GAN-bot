@@ -4,7 +4,20 @@ import torch
 from torch import Tensor, nn
 
 
-class DWConv2d(nn.Module):
+class ModuleDevice(nn.Module):
+    @property
+    def device(self) -> torch.device:
+        """
+        Get device.
+
+        Returns
+        -------
+        network device
+        """
+        return next(self.parameters()).device
+
+
+class DWConv2d(ModuleDevice):
     """Simple DepthWise convolution layer."""
 
     def __init__(
@@ -14,7 +27,7 @@ class DWConv2d(nn.Module):
         kernel_size: int = 3,
         stride: int = 1,
         padding: int = 1,
-    ):
+    ) -> None:
         """
         Init convolution layer.
 
@@ -58,19 +71,8 @@ class DWConv2d(nn.Module):
         """
         return self.conv(x)
 
-    @property
-    def device(self) -> torch.device:
-        """
-        Get layer device.
 
-        Returns
-        -------
-        network device
-        """
-        return next(self.parameters()).device
-
-
-class DWResidualBlock(nn.Module):
+class DWResidualBlock(ModuleDevice):
     """Residual block with sequence of DepthWise + BN + PReLU + DepthWise + BN."""
 
     def __init__(
@@ -124,14 +126,3 @@ class DWResidualBlock(nn.Module):
         output transformed tensor
         """
         return self.block(in_features) + in_features
-
-    @property
-    def device(self) -> torch.device:
-        """
-        Get block device.
-
-        Returns
-        -------
-        network device
-        """
-        return next(self.parameters()).device

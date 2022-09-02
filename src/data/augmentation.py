@@ -1,66 +1,69 @@
 """Module with augmentations."""
 
+from typing import Optional, Tuple
+
 from torchvision import transforms as T
 
-from src.datacls import Augmentation, InferenceAugmentation
+from ..datacls import Augmentation, InferenceAugmentation
 
-MEAN = [0.5, 0.5, 0.5]
-STD = [0.5, 0.5, 0.5]
 
-train_image_transform = T.Compose(
-    [
-        T.Resize(512),
-        T.RandomCrop((448, 448)),
-        T.RandomHorizontalFlip(),
-        T.RandomVerticalFlip(),
-        T.RandomApply(
+def create_train_augmentation(
+    train: bool = True,
+    mean: Optional[Tuple[float, float, float]] = None,
+    std: Optional[Tuple[float, float, float]] = None,
+    large_image_size: int = 448,
+    ratio_small_to_large: float = 0.5,
+) -> Augmentation:
+    assert ratio_small_to_large < 1, "ratio must be smaller than 1"
+    if mean is None:
+        mean = [0.5, 0.5, 0.5]
+    if std is None:
+        std = [0.5, 0.5, 0.5]
+    if train:
+        transform = T.Compose(
             [
-                T.ColorJitter(brightness=0.1, hue=0.1),
-                T.RandomEqualize(),
+                T.Resize(large_image_size + 64),
+                T.RandomCrop((large_image_size, large_image_size)),
+                T.RandomHorizontalFlip(),
+                T.RandomVerticalFlip(),
+                T.RandomApply(
+                    [T.ColorJitter(brightness=0.1, hue=0.1), T.RandomEqualize()]
+                ),
             ]
-        ),
-    ]
-)
-valid_image_transform = T.Compose(
-    [
-        T.Resize(512),
-        T.RandomCrop((448, 448)),
-    ]
-)
-large_image_transform = T.Compose(
-    [
-        T.ToTensor(),
-        T.Normalize(MEAN, STD),
-    ]
-)
-small_image_transform = T.Compose(
-    [
-        T.Resize(224),
-        T.ToTensor(),
-        T.Normalize(MEAN, STD),
-    ]
-)
+        )
+    else:
+        transform = T.Compose(
+            [
+                T.Resize(large_image_size + 64),
+                T.RandomCrop((large_image_size, large_image_size)),
+            ]
+        )
+    large_image_transform = T.Compose([T.ToTensor(), T.Normalize(mean=mean, std=std)])
+    small_image_size = round(large_image_size * ratio_small_to_large)
+    small_image_transform = T.Compose(
+        [T.Resize(small_image_size), T.ToTensor(), T.Normalize(mean=mean, std=std)]
+    )
+    return Augmentation(
+        mean=mean,
+        std=mean,
+        main=transform,
+        large=large_image_transform,
+        small=small_image_transform,
+    )
 
 
-train = Augmentation(
-    mean=MEAN,
-    std=STD,
-    main=train_image_transform,
-    large=large_image_transform,
-    small=small_image_transform,
-)
-
-valid = Augmentation(
-    mean=MEAN,
-    std=STD,
-    main=valid_image_transform,
-    large=large_image_transform,
-    small=small_image_transform,
-)
-
-inference = InferenceAugmentation(
-    mean=MEAN,
-    std=STD,
-    main=T.Compose([T.ToTensor(), T.Normalize(MEAN, STD)]),
-    resize=T.Resize(512),
-)
+def create_inference_augmentation(
+    input_image_size: int = 512,
+    mean: Optional[Tuple[float, float, float]] = None,
+    std: Optional[Tuple[float, float, float]] = None,
+) -> Augmentation:
+    if mean is None:
+        mean = [0.5, 0.5, 0.5]
+    if std is None:
+        std = [0.5, 0.5, 0.5]
+    return InferenceAugmentation(
+        mean=mean,
+        std=mean,
+        main=T.Compose([T.ToTensor(), T.Normalize(mean=mean, std=std)]),
+        resize=T.Resize(input_image_size),
+    )

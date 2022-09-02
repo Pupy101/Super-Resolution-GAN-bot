@@ -1,33 +1,38 @@
 """Train model."""
 
-import os
-from os.path import join as join_path
+
+from pathlib import Path
 
 import torch
+from torch import Tensor
 from torch.utils.data import DataLoader
+from torchsummary import summary
 from tqdm.notebook import tqdm
 
-from src.datacls import (
+from ..datacls import (
     Criterion,
     Dataloaders,
     DiscriminatorLoss,
+    GANModel,
     GeneratorLoss,
+    LossCoefficients,
     MetricResult,
-    Model,
     Optimizer,
 )
-from src.utils.misc import get_patch
+from ..utils.misc import get_patch
 
 
 def train_model(
     n_epoch: int,
-    model: Model,
+    model: GANModel,
     loaders: Dataloaders,
     critetion: Criterion,
     optimizer: Optimizer,
     device: torch.device,
+    coefficients: LossCoefficients,
     accumulation: int = 1,
     patch_gan: bool = False,
+    input_size: int = 224,
 ):
     """
     Train super resolution model.
@@ -35,7 +40,7 @@ def train_model(
     Parameters
     ----------
     n_epoch : count epoch
-    model : models with generator and discriminator
+    model : model with generator and discriminator
     loaders : loaders with train and validation
     critetion : criterions with loss function for generator and discriminator
     optimizer : optimizers for generator and discriminator
@@ -43,7 +48,12 @@ def train_model(
     patch_gan : use only patch from image to compute gan
     """
     min_eval_loss = float("inf")
-    os.makedirs("weights", exist_ok=True)
+    save_path = Path.cwd() / "weights"
+    save_path.mkdir(exist_ok=True)
+    print("Generator:")
+    summary(model=model.generator, input_size=input_size)
+    print("Discriminator:")
+    summary(model=model.generator, input_size=input_size)
     for i in range(n_epoch):
         print(f"\tEpoch {i+1}/{n_epoch}")
         train_metric = train_one_epoch(
@@ -52,6 +62,7 @@ def train_model(
             criterion=critetion,
             optimizer=optimizer,
             device=device,
+            coefficients=coefficients,
             accumulation=accumulation,
             patch_gan=patch_gan,
         )
@@ -61,31 +72,26 @@ def train_model(
             loader=loaders.valid,
             criterion=critetion,
             device=device,
+            coefficients=coefficients,
             patch_gan=patch_gan,
         )
         eval_avg_loss = eval_metric.generator.avg
         if train_avg_loss > eval_avg_loss and eval_avg_loss < min_eval_loss:
             min_eval_loss = eval_avg_loss
-            torch.save(
-                model.state_dict(),
-                join_path("./weights", f"Model_{i+1}.pth"),
-            )
-            torch.save(
-                optimizer.state_dict(),
-                join_path("./weights", f"Optimizer_{i+1}.pth"),
-            )
-    print(
-        f"Best metric Train loss: {train_avg_loss:10.5f}\t"
-        f"Eval loss: {eval_avg_loss:10.5f}"
-    )
+            torch.save(model.state_dict(), save_path / f"Model_{i+1}.pth")
+            torch.save(optimizer.state_dict(), save_path / f"Optimizer_{i+1}.pth")
+    print(f"Best metric:")
+    print("\tTrain loss: {train_avg_loss:10.5f}")
+    print(f"\tEval loss: {eval_avg_loss:10.5f}")
 
 
 def train_one_epoch(
-    model: Model,
+    model: GANModel,
     loader: DataLoader,
     criterion: Criterion,
     optimizer: Optimizer,
     device: torch.device,
+    coefficients: LossCoefficients,
     accumulation: int = 1,
     patch_gan: bool = False,
 ) -> MetricResult:
@@ -105,12 +111,10 @@ def train_one_epoch(
     -------
     all losses
     """
-    avg_loss_gen = 0
-    avg_loss_dis = 0
-    avg_loss_mse = 0
-    avg_loss_vgg = 0
-    avg_loss_bce = 0
-    count = 0
+    ovr_loss_dis = 0
+    ovr_loss_mse = 0
+    ovr_loss_vgg = 0
+    ovr_loss_bce = 0
 
     model.discriminator.train()
     model.generator.train()
@@ -123,28 +127,30 @@ def train_one_epoch(
     for i, (large_image, small_image) in tqdm(
         enumerate(loader, 1), leave=False, total=length_dataloader
     ):
-        count += 1
+        large_image: Tensor
+        small_image: Tensor
         large_image = large_image.to(device)
         small_image = small_image.to(device)
 
         # generator
         # mse and vgg loss
-        output_gen = model.generator(small_image)
-        loss_mse_vgg = criterion.generator.mse_vgg(output_gen, large_image)
-        vgg_loss = loss_mse_vgg.loss1
-        mse_loss = loss_mse_vgg.loss2
-        avg_loss_gen += vgg_loss.item() + mse_loss.item()
-        avg_loss_mse += mse_loss.item()
-        avg_loss_vgg += vgg_loss.item()
+        output_gen: Tensor = model.generator(small_image)
+        loss_mse: Tensor = (
+            criterion.generator.mse(output_gen, large_image) * coefficients.mse
+        )
+        loss_vgg: Tensor = (
+            criterion.generator.vgg(output_gen, large_image) * coefficients.vgg
+        )
+        ovr_loss_mse += loss_vgg.item()
+        ovr_loss_vgg += loss_vgg.item()
         # bce loss
         label = torch.ones(small_image.size(0), device=device, dtype=torch.long)
         output_gen = model.generator(small_image)
         output_dis = model.discriminator(output_gen)
-        loss_bce = criterion.generator.bce(output_dis, label)
-        avg_loss_gen += 1e-3 * loss_bce.item()
-        avg_loss_bce += loss_bce.item()
+        loss_bce: Tensor = criterion.generator.bce(output_dis, label) * coefficients.bce
+        ovr_loss_bce += loss_bce.item()
 
-        loss_gen += vgg_loss + mse_loss + 1e-3 * loss_bce
+        loss_gen += loss_vgg + loss_mse + loss_bce
         if accumulation == 1 or i % accumulation == 0 or i == length_dataloader:
             loss_gen.backward()
             optimizer.generator.step()
@@ -159,51 +165,54 @@ def train_one_epoch(
         else:
             patched_images = large_image
         output_dis = model.discriminator(patched_images)
-        real_loss = criterion.discriminator(output_dis, label)
-        avg_loss_dis += real_loss.item()
+        loss_real: Tensor = criterion.discriminator(output_dis, label)
+        ovr_loss_dis += loss_real.item()
         # fake images
         label = torch.zeros(small_image.size(0), device=device, dtype=torch.long)
         with torch.no_grad():
-            fake_image = model.generator(small_image)
+            fake_image: Tensor = model.generator(small_image)
         if patch_gan:
             patched_images, *_ = get_patch(fake_image, index_height, index_weight)
         else:
             patched_images = fake_image
         output_dis = model.discriminator(patched_images)
-        fake_loss = criterion.discriminator(output_dis, label)
-        avg_loss_dis += fake_loss.item()
+        loss_fake: Tensor = criterion.discriminator(output_dis, label)
+        ovr_loss_dis += loss_fake.item()
 
-        loss_dis += fake_loss + real_loss
+        loss_dis += loss_fake + loss_real
         if accumulation == 1 or i % accumulation == 0 or i == length_dataloader:
             loss_dis.backward()
             optimizer.discriminator.step()
             optimizer.discriminator.zero_grad()
             loss_dis = 0
 
-    print(
-        f"TRAIN Discriminator Loss: {avg_loss_dis / count:7.3f}\t"
-        f"Generator Loss: {avg_loss_gen / count:7.3f}\t"
-        f"Gen GANLoss: {avg_loss_bce / count:7.3f}  "
-        f"Gen MSELoss: {avg_loss_mse / count:7.3f}  "
-        f"Gen VGGLoss: {avg_loss_vgg / count:7.3f}"
-    )
+    avg_loss_dis = ovr_loss_dis / i
+    avg_loss_gen = (ovr_loss_bce + ovr_loss_mse + ovr_loss_vgg) / i
+    avg_loss_bce = ovr_loss_bce / i
+    avg_loss_mse = ovr_loss_mse / i
+    avg_loss_vgg = ovr_loss_vgg / i
+
+    print("TRAIN:")
+    print(f"\tDiscriminator Loss: {avg_loss_dis:7.3f}")
+    print(f"\tGenerator Loss: {avg_loss_gen:7.3f}")
+    print(f"\tGenerator GANLoss: {avg_loss_bce:7.3f}")
+    print(f"\tGenerator MSELoss: {avg_loss_mse:7.3f}")
+    print(f"\tGenerator VGGLoss: {avg_loss_vgg:7.3f}")
     return MetricResult(
-        discriminator=DiscriminatorLoss(avg=avg_loss_dis / count),
+        discriminator=DiscriminatorLoss(avg=avg_loss_dis),
         generator=GeneratorLoss(
-            avg=avg_loss_gen / count,
-            bce=avg_loss_bce / count,
-            mse=avg_loss_mse / count,
-            vgg=avg_loss_vgg / count,
+            avg=avg_loss_gen, bce=avg_loss_bce, mse=avg_loss_mse, vgg=avg_loss_vgg
         ),
     )
 
 
 @torch.no_grad()
 def evaluate_one_epoch(
-    model: Model,
+    model: GANModel,
     loader: DataLoader,
     criterion: Criterion,
     device: torch.device,
+    coefficients: LossCoefficients,
     patch_gan: bool = False,
 ) -> MetricResult:
     """
@@ -211,7 +220,7 @@ def evaluate_one_epoch(
 
     Parameters
     ----------
-    model : models with generator and discriminator
+    model : model with generator and discriminator
     loader : validation loader
     criterion : criterions with loss function for generator and discriminator
     device : device for validation
@@ -221,38 +230,40 @@ def evaluate_one_epoch(
     -------
     all losses
     """
-    avg_loss_gen = 0
-    avg_loss_dis = 0
-    avg_loss_mse = 0
-    avg_loss_vgg = 0
-    avg_loss_bce = 0
-    count = 0
+    ovr_loss_dis = 0
+    ovr_loss_mse = 0
+    ovr_loss_vgg = 0
+    ovr_loss_bce = 0
     length_dataloader = len(loader)
 
     model.discriminator.eval()
     model.generator.eval()
 
-    for large_image, small_image in tqdm(loader, leave=False, total=length_dataloader):
-        count += 1
+    for i, (large_image, small_image) in tqdm(
+        enumerate(loader, 1), leave=False, total=length_dataloader
+    ):
+        large_image: Tensor
+        small_image: Tensor
         large_image = large_image.to(device)
         small_image = small_image.to(device)
 
         # generator
         #  mse and vgg loss
         output_gen = model.generator(small_image)
-        loss_mse_vgg = criterion.generator.mse_vgg(output_gen, large_image)
-        vgg_loss = loss_mse_vgg.loss1
-        mse_loss = loss_mse_vgg.loss2
-        avg_loss_gen += vgg_loss.item() + mse_loss.item()
-        avg_loss_mse += mse_loss.item()
-        avg_loss_vgg += vgg_loss.item()
+        loss_mse: Tensor = (
+            criterion.generator.mse(output_gen, large_image) * coefficients.mse
+        )
+        loss_vgg: Tensor = (
+            criterion.generator.vgg(output_gen, large_image) * coefficients.vgg
+        )
+        ovr_loss_mse += loss_mse.item()
+        ovr_loss_vgg += loss_vgg.item()
         # bce loss
         label = torch.ones(small_image.size(0), device=device, dtype=torch.long)
         output_gen = model.generator(small_image)
         output_dis = model.discriminator(output_gen)
-        loss_bce = criterion.generator.bce(output_dis, label)
-        avg_loss_gen += 1e-3 * loss_bce.item()
-        avg_loss_bce += loss_bce.item()
+        loss_bce: Tensor = criterion.generator.bce(output_dis, label) * coefficients.bce
+        ovr_loss_bce += loss_bce.item()
 
         # discriminator
         # real images
@@ -262,8 +273,8 @@ def evaluate_one_epoch(
         else:
             patched_images = large_image
         output_dis = model.discriminator(patched_images)
-        real_loss = criterion.discriminator(output_dis, label)
-        avg_loss_dis += real_loss.item()
+        loss_real: Tensor = criterion.discriminator(output_dis, label)
+        ovr_loss_dis += loss_real.item()
         # fake images
         label = torch.zeros(small_image.size(0), device=device, dtype=torch.long)
         fake_image = model.generator(small_image)
@@ -272,22 +283,24 @@ def evaluate_one_epoch(
         else:
             patched_images = fake_image
         output_dis = model.discriminator(patched_images)
-        fake_loss = criterion.discriminator(output_dis, label)
-        avg_loss_dis += fake_loss.item()
+        loss_fake: Tensor = criterion.discriminator(output_dis, label)
+        ovr_loss_dis += loss_fake.item()
 
-    print(
-        f"EVAL Discriminator Loss: {avg_loss_dis / count:7.3f}\t"
-        f"Generator Loss: {avg_loss_gen / count:7.3f}\t"
-        f"Gen GANLoss: {avg_loss_bce / count:7.3f}  "
-        f"Gen MSELoss: {avg_loss_mse / count:7.3f}  "
-        f"Gen VGGLoss: {avg_loss_vgg / count:7.3f} "
-    )
+    avg_loss_dis = ovr_loss_dis / i
+    avg_loss_gen = (ovr_loss_bce + ovr_loss_mse + ovr_loss_vgg) / i
+    avg_loss_bce = ovr_loss_bce / i
+    avg_loss_mse = ovr_loss_mse / i
+    avg_loss_vgg = ovr_loss_vgg / i
+
+    print("EVAL:")
+    print(f"\tDiscriminator Loss: {avg_loss_dis:7.3f}")
+    print(f"Generator Loss: {avg_loss_gen:7.3f}")
+    print(f"Generator GANLoss: {avg_loss_bce:7.3f}")
+    print(f"Gen MSELoss: {avg_loss_mse:7.3f}")
+    print(f"Gen VGGLoss: {avg_loss_vgg:7.3f}")
     return MetricResult(
-        discriminator=DiscriminatorLoss(avg=avg_loss_dis / count),
+        discriminator=DiscriminatorLoss(avg=avg_loss_dis),
         generator=GeneratorLoss(
-            avg=avg_loss_gen / count,
-            bce=avg_loss_bce / count,
-            mse=avg_loss_mse / count,
-            vgg=avg_loss_vgg / count,
+            avg=avg_loss_gen, bce=avg_loss_bce, mse=avg_loss_mse, vgg=avg_loss_vgg
         ),
     )

@@ -1,7 +1,8 @@
 """Module with usefull dataclasses."""
 
 from dataclasses import dataclass
-from typing import Any, Dict, List
+from pathlib import Path
+from typing import Any, Dict, Optional, Tuple, Union
 
 import torch
 from torch import nn, optim
@@ -13,8 +14,8 @@ from torchvision import transforms as T
 class Augmentation:
     """Parameters for train/valid aigmentations."""
 
-    mean: List[float]
-    std: List[float]
+    mean: Tuple[float, float, float]
+    std: Tuple[float, float, float]
     main: T.Compose
     large: T.Compose
     small: T.Compose
@@ -24,8 +25,8 @@ class Augmentation:
 class InferenceAugmentation:
     """Parameters for inference preprocessing images."""
 
-    mean: List[float]
-    std: List[float]
+    mean: Tuple[float, float, float]
+    std: Tuple[float, float, float]
     main: T.Compose
     resize: T.Resize
 
@@ -39,8 +40,11 @@ class GANParameters:
 
 
 @dataclass
-class TorchModuleSubclass(GANParameters):
-    """Class for save and load combinated model (generator/discriminator)."""
+class GANModule(GANParameters):
+    """Class with torch model."""
+
+    generator: Union[nn.Module, optim.Optimizer]
+    discriminator: Union[nn.Module, optim.Optimizer]
 
     def state_dict(self) -> Dict[str, Dict[str, torch.Tensor]]:
         """
@@ -68,7 +72,7 @@ class TorchModuleSubclass(GANParameters):
         self.generator.load_state_dict(weight["generator"])
         self.discriminator.load_state_dict(weight["discriminator"])
 
-    def to(self, device: torch.device) -> "TorchModuleSubclass":
+    def to(self, device: torch.device) -> "GANModule":
         """
         Move to another device.
 
@@ -86,15 +90,15 @@ class TorchModuleSubclass(GANParameters):
 
 
 @dataclass
-class Model(TorchModuleSubclass):
-    """Combinated model with generator and discriminator."""
+class GANModel(GANModule):
+    """Class with torch model."""
 
     generator: nn.Module
     discriminator: nn.Module
 
 
 @dataclass
-class Optimizer(TorchModuleSubclass):
+class Optimizer(GANModule):
     """Optimizers for generator and discriminator."""
 
     generator: optim.Optimizer
@@ -105,8 +109,16 @@ class Optimizer(TorchModuleSubclass):
 class CriterionGenerator:
     """Criterions for generator with VGGLos + MSELoss and BCELoss."""
 
-    mse_vgg: nn.Module
+    vgg: nn.Module
+    mse: nn.Module
     bce: nn.Module
+
+
+@dataclass
+class LossCoefficients:
+    vgg: float
+    mse: float
+    bce: float
 
 
 @dataclass
@@ -131,14 +143,6 @@ class Dataloaders:
 
     train: DataLoader
     valid: DataLoader
-
-
-@dataclass
-class CombinedLossOutput:
-    """Losses values from combinated loss."""
-
-    loss1: torch.Tensor
-    loss2: torch.Tensor
 
 
 @dataclass
@@ -170,9 +174,12 @@ class MetricResult:
 class InferenceConfig:
     """Config for starting inference consumer."""
 
+    input_image_size: int
     model: nn.Module
-    weight: str
-    device: torch.device
+    weight: Union[str, Path]
+    device: Union[torch.device, str]
     batch_size: int
-    input_dir: str
-    target_dir: str
+    input_dir: Union[str, Path]
+    target_dir: Union[str, Path]
+    mean: Optional[Tuple[float, float, float]] = None
+    std: Optional[Tuple[float, float, float]] = None

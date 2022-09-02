@@ -5,10 +5,10 @@ from typing import List
 import torch
 from torch import Tensor, nn
 
-from .layers import DWConv2d, DWResidualBlock
+from .layers import DWConv2d, DWResidualBlock, ModuleDevice
 
 
-class SuperResolutionGenerator(nn.Module):
+class SuperResolutionGenerator(ModuleDevice):
     """Super resolution network."""
 
     def __init__(self, n_increase: int = 2):
@@ -19,6 +19,7 @@ class SuperResolutionGenerator(nn.Module):
         ----------
         n_increase : increasing resolution multiplier
         """
+        self.n_increase = n_increase
         assert not n_increase % 2, "Increase must be multiple of 2"
         super().__init__()
         self.residual_1 = nn.Sequential(
@@ -112,14 +113,3 @@ class SuperResolutionGenerator(nn.Module):
         x4 = self.residual_pixel_shuffle(x1 + x2 + x3)
         x5 = self.output_residual(x4)
         return x5
-
-    @property
-    def device(self) -> torch.device:
-        """
-        Get network device.
-
-        Returns
-        -------
-        network device
-        """
-        return next(self.parameters()).device

@@ -1,23 +1,21 @@
 """Consumer class for preprocessing image in another process."""
 
-from math import ceil
 from pathlib import Path
 from time import sleep
-from typing import List
+from typing import List, Union
 
 import torch
+from torch import Tensor
 
-from src.datacls import InferenceConfig
-from src.utils.misc import denormolize, prepare_image, write_image
+from ..data.augmentation import create_inference_augmentation
+from ..datacls import InferenceConfig
+from ..utils.misc import create_chunks, denormolize, prepare_image, write_image
 
 
 class SuperResolutionConsumer:
     """Class for inference image from super resolution network."""
 
-    def __init__(
-        self,
-        config: InferenceConfig,
-    ):
+    def __init__(self, config: InferenceConfig) -> None:
         """
         Init method.
 
@@ -29,14 +27,18 @@ class SuperResolutionConsumer:
         self.model = config.model
         self.device = config.device
         self.prepare_model(config.weight)
-        self.b_s = config.weight
+        self.augmentation = create_inference_augmentation(
+            input_image_size=config.input_image_size, mean=config.mean, std=config.std
+        )
+        self.batch_size = config.batch_size
         self.input_dir = Path(config.input_dir)
         self.target_dir = Path(config.target_dir)
+        self.available_extensions = {".png", ".jpg", ".jpeg", ".tiff", ".bmp", ".gif"}
         assert (
             self.input_dir.is_dir() and self.target_dir.is_dir()
         ), "Check input and target path model consumer"
 
-    def prepare_model(self, weight: str) -> None:
+    def prepare_model(self, weight: Union[str, Path]) -> None:
         """
         Load weights and transfer network on right device.
 
@@ -55,9 +57,9 @@ class SuperResolutionConsumer:
         -------
         List of input images.
         """
-        images = []
-        for file in self.input_dir.glob("*.*"):
-            if file.suffix not in [".png", ".jpg", ".jpeg", ".tiff", ".bmp", ".gif"]:
+        images: List[Path] = []
+        for file in self.input_dir.glob("*"):
+            if file.suffix.lower() not in self.available_extensions:
                 file.unlink()
                 continue
             images.append(file)
@@ -71,16 +73,16 @@ class SuperResolutionConsumer:
         ----------
         batch : List of path to images
         """
-        prepared = []
+        prepared: List[Tensor] = []
         for path in batch:
-            prepared.append(prepare_image(path))
+            prepared.append(prepare_image(path, augmentation=self.augmentation))
         prepared_batch = torch.cat(prepared, dim=0)
         with torch.no_grad():
-            output = self.model(prepared_batch.to(self.device))
-        denormalized = denormolize(output)
+            output: Tensor = self.model(prepared_batch.to(self.device))
+        denormalized = denormolize(output, mean=self.config.mean, std=self.config.std)
         for i, image in enumerate(denormalized):
             target = self.target_dir / batch[i].name
-            write_image(image, str(target))
+            write_image(image, target)
 
     def run(self) -> None:
         """
@@ -92,7 +94,6 @@ class SuperResolutionConsumer:
         """
         while True:
             input_images = self.check_input_dir()
-            for i in range(ceil(len(input_images) / self.b_s)):
-                batch = input_images[i * self.b_s : (i + 1) * self.b_s]
+            for batch in create_chunks(input_images, chunk_size=self.batch_size):
                 self.handle_batch(batch)
             sleep(1)
