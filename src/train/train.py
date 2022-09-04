@@ -52,11 +52,11 @@ def train_model(
     min_eval_loss = float("inf")
     save_path = Path.cwd() / "weights"
     save_path.mkdir(exist_ok=True)
+    model.to(device)
     print("Generator:")
     summary(model=model.generator, input_size=(3, input_size, input_size))
-    print("Discriminator:")
+    print("\nDiscriminator:")
     summary(model=model.discriminator, input_size=(3, input_size, input_size))
-    model.to(device)
     for i in range(n_epoch):
         print(f"\tEpoch {i+1}/{n_epoch}")
         train_metric = train_one_epoch(
@@ -85,7 +85,7 @@ def train_model(
             torch.save(optimizer.state_dict(), save_path / f"Optimizer_{i+1}.pth")
     print("Best metric:")
     print(f"\tTrain loss: {train_avg_loss:10.5f}")
-    print(f"\tEval loss: {eval_avg_loss:10.5f}")
+    print(f"\tEval loss:  {eval_avg_loss:10.5f}")
 
 
 def train_one_epoch(
@@ -195,10 +195,10 @@ def train_one_epoch(
 
     print("TRAIN:")
     print(f"\tDiscriminator Loss: {avg_loss_dis:7.3f}")
-    print(f"\tGenerator Loss: {avg_loss_gen:7.3f}")
-    print(f"\tGenerator GANLoss: {avg_loss_bce:7.3f}")
-    print(f"\tGenerator MSELoss: {avg_loss_mse:7.3f}")
-    print(f"\tGenerator VGGLoss: {avg_loss_vgg:7.3f}")
+    print(f"\tGenerator Loss:     {avg_loss_gen:7.3f}")
+    print(f"\tGenerator GANLoss:  {avg_loss_bce:7.3f}")
+    print(f"\tGenerator MSELoss:  {avg_loss_mse:7.3f}")
+    print(f"\tGenerator VGGLoss:  {avg_loss_vgg:7.3f}")
     return MetricResult(
         discriminator=DiscriminatorLoss(avg=avg_loss_dis),
         generator=GeneratorLoss(
@@ -292,10 +292,10 @@ def evaluate_one_epoch(
 
     print("EVAL:")
     print(f"\tDiscriminator Loss: {avg_loss_dis:7.3f}")
-    print(f"\tGenerator Loss: {avg_loss_gen:7.3f}")
-    print(f"\tGenerator GANLoss: {avg_loss_bce:7.3f}")
-    print(f"\tGenerator MSELoss: {avg_loss_mse:7.3f}")
-    print(f"\tGenerator VGGLoss: {avg_loss_vgg:7.3f}")
+    print(f"\tGenerator Loss:     {avg_loss_gen:7.3f}")
+    print(f"\tGenerator GANLoss:  {avg_loss_bce:7.3f}")
+    print(f"\tGenerator MSELoss:  {avg_loss_mse:7.3f}")
+    print(f"\tGenerator VGGLoss:  {avg_loss_vgg:7.3f}")
     return MetricResult(
         discriminator=DiscriminatorLoss(avg=avg_loss_dis),
         generator=GeneratorLoss(
