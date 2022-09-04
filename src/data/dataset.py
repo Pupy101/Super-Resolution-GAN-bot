@@ -14,7 +14,7 @@ logger = getLogger(__file__)
 
 
 class SuperResolutionDataset(Dataset):
-    """Super resolution dataset."""
+    """Dataset for train increase resolution gan."""
 
     def __init__(
         self,
@@ -25,17 +25,16 @@ class SuperResolutionDataset(Dataset):
         """
         Init method.
 
-        Parameters
-        ----------
-        dirs : directories with images.
-        transform : Augmentation for perprocessing image and transform
-        it into small and large example.
+        Args:
+            dirs (List[Union[str, Path]]): directories with images
+            transform (Augmentation): Augmentation for perprocessing image and transform
+                into small and large example
+            available_extensions (Optional[Set[str]], optional): avalidable image extensions
         """
+
         if available_extensions is None:
             available_extensions = {".png", ".jpg", ".jpeg", ".tiff", ".bmp", ".gif"}
-        self.files = self._find_all_images(
-            dirs, available_extensions=available_extensions
-        )
+        self.files = self._find_all_images(dirs, available_extensions=available_extensions)
         self.transforms = transform
 
     def __getitem__(self, ind: int) -> Tuple[Tensor, Tensor]:
@@ -64,13 +63,12 @@ class SuperResolutionDataset(Dataset):
         """
         Find all images in given directories.
 
-        Parameters
-        ----------
-        folders : List of directories.
+        Args:
+            folders (List[Union[str, Path]]): List of directories.
+            available_extensions (Set[str]): avalidable image extensions
 
-        Returns
-        -------
-        List of path to images
+        Returns:
+            List[Path]: List of path to images
         """
         images = []
         for folder in folders:

@@ -1,6 +1,7 @@
 """Module with usefull dataclasses."""
 
 from dataclasses import dataclass
+from enum import Enum
 from pathlib import Path
 from typing import Any, Dict, Optional, Tuple, Union
 
@@ -183,3 +184,8 @@ class InferenceConfig:
     target_dir: Union[str, Path]
     mean: Optional[Tuple[float, float, float]] = None
     std: Optional[Tuple[float, float, float]] = None
+
+
+class ForwardType(Enum):
+    TRAIN = "train"
+    VALIDATION = "validation"

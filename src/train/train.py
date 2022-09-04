@@ -1,4 +1,4 @@
-"""Train model."""
+"""Modile with train loop."""
 
 
 from pathlib import Path
@@ -32,28 +32,31 @@ def train_model(
     coefficients: LossCoefficients,
     accumulation: int = 1,
     patch_gan: bool = False,
-    input_size: int = 224,
+    input_size: int = 112,
 ):
     """
     Train super resolution model.
 
-    Parameters
-    ----------
-    n_epoch : count epoch
-    model : model with generator and discriminator
-    loaders : loaders with train and validation
-    critetion : criterions with loss function for generator and discriminator
-    optimizer : optimizers for generator and discriminator
-    device : device for training
-    patch_gan : use only patch from image to compute gan
+    Args:
+        n_epoch (int): count epoch
+        model (GANModel): model with generator and discriminator
+        loaders (Dataloaders): train and validation loaders
+        critetion (Criterion): criterions with loss function for generator and discriminator
+        optimizer (Optimizer): optimizers for generator and discriminator
+        device (torch.device): device for training
+        coefficients (LossCoefficients): coefficient for losses
+        accumulation (int, optional): count of accumulation steps
+        patch_gan (bool, optional): use only patch from image to compute gan
+        input_size (int, optional): inout to generator image size
     """
     min_eval_loss = float("inf")
     save_path = Path.cwd() / "weights"
     save_path.mkdir(exist_ok=True)
     print("Generator:")
-    summary(model=model.generator, input_size=input_size)
+    summary(model=model.generator, input_size=(3, input_size, input_size))
     print("Discriminator:")
-    summary(model=model.generator, input_size=input_size)
+    summary(model=model.discriminator, input_size=(3, input_size, input_size))
+    model.to(device)
     for i in range(n_epoch):
         print(f"\tEpoch {i+1}/{n_epoch}")
         train_metric = train_one_epoch(
@@ -80,8 +83,8 @@ def train_model(
             min_eval_loss = eval_avg_loss
             torch.save(model.state_dict(), save_path / f"Model_{i+1}.pth")
             torch.save(optimizer.state_dict(), save_path / f"Optimizer_{i+1}.pth")
-    print(f"Best metric:")
-    print("\tTrain loss: {train_avg_loss:10.5f}")
+    print("Best metric:")
+    print(f"\tTrain loss: {train_avg_loss:10.5f}")
     print(f"\tEval loss: {eval_avg_loss:10.5f}")
 
 
@@ -96,51 +99,49 @@ def train_one_epoch(
     patch_gan: bool = False,
 ) -> MetricResult:
     """
-    Train model.
+    One epoch train model.
 
-    Parameters
-    ----------
-    model : models with generator and discriminator
-    loader : training loader
-    criterion : criterions with loss function for generator and discriminator
-    optimizer : optimizers for generator and discriminator
-    device : device for training
-    patch_gan : use only patch from image to compute gan
+    Args:
+        model (GANModel): models with generator and discriminator
+        loader (DataLoader): training loader
+        criterion (Criterion): criterions with losses function for generator and discriminator
+        optimizer (Optimizer): optimizers for generator and discriminator
+        device (torch.device): device for training
+        coefficients (LossCoefficients): coefficient for generator losses
+        accumulation (int, optional): count of accumulation steps
+        patch_gan (bool, optional): use only patch from image to compute gan
 
-    Returns
-    -------
-    all losses
+    Returns:
+        MetricResult: average train metrics
     """
-    ovr_loss_dis = 0
-    ovr_loss_mse = 0
-    ovr_loss_vgg = 0
-    ovr_loss_bce = 0
+    ovr_loss_dis = 0.0
+    ovr_loss_mse = 0.0
+    ovr_loss_vgg = 0.0
+    ovr_loss_bce = 0.0
 
     model.discriminator.train()
     model.generator.train()
     length_dataloader = len(loader)
     loss_dis = 0
     loss_gen = 0
+    i = 1
     optimizer.discriminator.zero_grad()
     optimizer.generator.zero_grad()
+
+    large_image: Tensor
+    small_image: Tensor
 
     for i, (large_image, small_image) in tqdm(
         enumerate(loader, 1), leave=False, total=length_dataloader
     ):
-        large_image: Tensor
-        small_image: Tensor
         large_image = large_image.to(device)
         small_image = small_image.to(device)
 
         # generator
         # mse and vgg loss
         output_gen: Tensor = model.generator(small_image)
-        loss_mse: Tensor = (
-            criterion.generator.mse(output_gen, large_image) * coefficients.mse
-        )
-        loss_vgg: Tensor = (
-            criterion.generator.vgg(output_gen, large_image) * coefficients.vgg
-        )
+        loss_mse: Tensor = criterion.generator.mse(output_gen, large_image) * coefficients.mse
+        loss_vgg: Tensor = criterion.generator.vgg(output_gen, large_image) * coefficients.vgg
         ovr_loss_mse += loss_vgg.item()
         ovr_loss_vgg += loss_vgg.item()
         # bce loss
@@ -216,46 +217,43 @@ def evaluate_one_epoch(
     patch_gan: bool = False,
 ) -> MetricResult:
     """
-    Validate model.
+    One epoch validation model.
 
-    Parameters
-    ----------
-    model : model with generator and discriminator
-    loader : validation loader
-    criterion : criterions with loss function for generator and discriminator
-    device : device for validation
-    patch_gan : use only patch from image to compute gan
+    Args:
+        model (GANModel): model with generator and discriminator
+        loader (DataLoader): validation loader
+        criterion (Criterion): criterions with loss function for generator and discriminator
+        device (torch.device): device for validation
+        coefficients (LossCoefficients): coefficient for generator losses
+        patch_gan (bool, optional): use only patch from image to compute gan
 
-    Returns
-    -------
-    all losses
+    Returns:
+        MetricResult: average validation metrics
     """
-    ovr_loss_dis = 0
-    ovr_loss_mse = 0
-    ovr_loss_vgg = 0
-    ovr_loss_bce = 0
+    ovr_loss_dis = 0.0
+    ovr_loss_mse = 0.0
+    ovr_loss_vgg = 0.0
+    ovr_loss_bce = 0.0
+    i = 1
     length_dataloader = len(loader)
 
     model.discriminator.eval()
     model.generator.eval()
 
+    large_image: Tensor
+    small_image: Tensor
+
     for i, (large_image, small_image) in tqdm(
         enumerate(loader, 1), leave=False, total=length_dataloader
     ):
-        large_image: Tensor
-        small_image: Tensor
         large_image = large_image.to(device)
         small_image = small_image.to(device)
 
         # generator
         #  mse and vgg loss
         output_gen = model.generator(small_image)
-        loss_mse: Tensor = (
-            criterion.generator.mse(output_gen, large_image) * coefficients.mse
-        )
-        loss_vgg: Tensor = (
-            criterion.generator.vgg(output_gen, large_image) * coefficients.vgg
-        )
+        loss_mse: Tensor = criterion.generator.mse(output_gen, large_image) * coefficients.mse
+        loss_vgg: Tensor = criterion.generator.vgg(output_gen, large_image) * coefficients.vgg
         ovr_loss_mse += loss_mse.item()
         ovr_loss_vgg += loss_vgg.item()
         # bce loss
@@ -294,10 +292,10 @@ def evaluate_one_epoch(
 
     print("EVAL:")
     print(f"\tDiscriminator Loss: {avg_loss_dis:7.3f}")
-    print(f"Generator Loss: {avg_loss_gen:7.3f}")
-    print(f"Generator GANLoss: {avg_loss_bce:7.3f}")
-    print(f"Gen MSELoss: {avg_loss_mse:7.3f}")
-    print(f"Gen VGGLoss: {avg_loss_vgg:7.3f}")
+    print(f"\tGenerator Loss: {avg_loss_gen:7.3f}")
+    print(f"\tGenerator GANLoss: {avg_loss_bce:7.3f}")
+    print(f"\tGenerator MSELoss: {avg_loss_mse:7.3f}")
+    print(f"\tGenerator VGGLoss: {avg_loss_vgg:7.3f}")
     return MetricResult(
         discriminator=DiscriminatorLoss(avg=avg_loss_dis),
         generator=GeneratorLoss(

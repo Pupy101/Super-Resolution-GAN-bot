@@ -7,10 +7,10 @@ from typing import Generator, Iterable, List, Optional, Tuple, TypeVar, Union
 import torch
 from numpy import ndarray
 from PIL import Image
-from src.model import SuperResolutionGenerator
 from torch import Tensor
 
 from ..datacls import InferenceAugmentation
+from ..model import SuperResolutionGenerator
 
 T = TypeVar("T")
 
@@ -48,9 +48,7 @@ def denormolize(
     return denormalized
 
 
-def prepare_image(
-    path_to_image: Union[str, Path], augmentation: InferenceAugmentation
-) -> Tensor:
+def prepare_image(path_to_image: Union[str, Path], augmentation: InferenceAugmentation) -> Tensor:
     """
     Preprocessing image for network inference.
 
@@ -84,9 +82,7 @@ def write_image(image: ndarray, target_path: Union[str, Path]) -> None:
 
 
 @torch.no_grad()
-def upsample_images_torch(
-    model: SuperResolutionGenerator, images: Tensor
-) -> List[ndarray]:
+def upsample_images_torch(model: SuperResolutionGenerator, images: Tensor) -> List[ndarray]:
     """
     Upsample image from torch.Tensor.
 
@@ -108,9 +104,7 @@ def upsample_images_torch(
 
 
 @torch.no_grad()
-def upsample_images_numpy(
-    model: SuperResolutionGenerator, images: ndarray
-) -> List[ndarray]:
+def upsample_images_numpy(model: SuperResolutionGenerator, images: ndarray) -> List[ndarray]:
     """
     Upsample image from numpy.ndarray.
 
@@ -189,9 +183,7 @@ def get_patch(
     return patch, h_i, w_i
 
 
-def create_chunks(
-    items: Iterable[T], chunk_size: int
-) -> Generator[List[T], None, None]:
+def create_chunks(items: Iterable[T], chunk_size: int) -> Generator[List[T], None, None]:
     chunk: List[T] = []
     for item in items:
         chunk.append(item)
