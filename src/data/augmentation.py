@@ -38,17 +38,17 @@ def create_augmentation(
     if mode == ForwardType.TRAIN.value:
         transform = T.Compose(
             [
-                T.Resize(large_image_size * 2),
                 T.RandomCrop((large_image_size, large_image_size)),
                 T.RandomHorizontalFlip(),
                 T.RandomVerticalFlip(),
-                T.RandomApply([T.ColorJitter(brightness=0.1, hue=0.1), T.RandomEqualize()]),
+                T.RandomApply(
+                    [T.ColorJitter(brightness=0.1, hue=0.1), T.RandomEqualize()]
+                ),
             ]
         )
     elif mode == ForwardType.VALIDATION.value:
         transform = T.Compose(
             [
-                T.Resize(large_image_size * 2),
                 T.CenterCrop((large_image_size, large_image_size)),
             ]
         )

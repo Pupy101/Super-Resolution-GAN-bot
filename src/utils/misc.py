@@ -9,7 +9,7 @@ from numpy import ndarray
 from PIL import Image
 from torch import Tensor
 
-from ..datacls import InferenceAugmentation
+from ..datacls import InferenceAugmentation, Optimizer
 from ..model import SuperResolutionGenerator
 
 T = TypeVar("T")
@@ -48,7 +48,9 @@ def denormolize(
     return denormalized
 
 
-def prepare_image(path_to_image: Union[str, Path], augmentation: InferenceAugmentation) -> Tensor:
+def prepare_image(
+    path_to_image: Union[str, Path], augmentation: InferenceAugmentation
+) -> Tensor:
     """
     Preprocessing image for network inference.
 
@@ -82,7 +84,9 @@ def write_image(image: ndarray, target_path: Union[str, Path]) -> None:
 
 
 @torch.no_grad()
-def upsample_images_torch(model: SuperResolutionGenerator, images: Tensor) -> List[ndarray]:
+def upsample_images_torch(
+    model: SuperResolutionGenerator, images: Tensor
+) -> List[ndarray]:
     """
     Upsample image from torch.Tensor.
 
@@ -104,7 +108,9 @@ def upsample_images_torch(model: SuperResolutionGenerator, images: Tensor) -> Li
 
 
 @torch.no_grad()
-def upsample_images_numpy(model: SuperResolutionGenerator, images: ndarray) -> List[ndarray]:
+def upsample_images_numpy(
+    model: SuperResolutionGenerator, images: ndarray
+) -> List[ndarray]:
     """
     Upsample image from numpy.ndarray.
 
@@ -183,7 +189,9 @@ def get_patch(
     return patch, h_i, w_i
 
 
-def create_chunks(items: Iterable[T], chunk_size: int) -> Generator[List[T], None, None]:
+def create_chunks(
+    items: Iterable[T], chunk_size: int
+) -> Generator[List[T], None, None]:
     chunk: List[T] = []
     for item in items:
         chunk.append(item)
@@ -192,3 +200,22 @@ def create_chunks(items: Iterable[T], chunk_size: int) -> Generator[List[T], Non
             chunk = []
     if chunk:
         yield chunk
+
+
+def move_optimizer_to_device(
+    optimizer: Union[Optimizer, torch.optim.Optimizer], device: Union[str, torch.device]
+) -> None:
+    def _move_optimizer(
+        optimizer: torch.optim.Optimizer, device: Union[str, torch.device]
+    ) -> None:
+        for state in optimizer.state.values():
+            assert isinstance(state, dict)
+            for k, v in state.items():
+                if isinstance(v, torch.Tensor):
+                    state[k] = v.to(device)
+
+    if isinstance(optimizer, Optimizer):
+        _move_optimizer(optimizer.discriminator, device=device)
+        _move_optimizer(optimizer.generator, device=device)
+    else:
+        _move_optimizer(optimizer, device=device)

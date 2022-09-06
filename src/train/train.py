@@ -74,7 +74,7 @@ def train_model(
         train_avg_loss = train_metric.generator.avg
         eval_metric = forward_one_epoch(
             model=model,
-            loader=loaders.train,
+            loader=loaders.valid,
             criterion=critetion,
             optimizer=optimizer,
             device=device,
@@ -158,8 +158,12 @@ def forward_one_epoch(
         with context_manager():
             output_gen: Tensor = model.generator(small_image)
 
-        loss_mse: Tensor = criterion.generator.mse(output_gen, large_image) * coefficients.mse
-        loss_vgg: Tensor = criterion.generator.vgg(output_gen, large_image) * coefficients.vgg
+        loss_mse: Tensor = (
+            criterion.generator.mse(output_gen, large_image) * coefficients.mse
+        )
+        loss_vgg: Tensor = (
+            criterion.generator.vgg(output_gen, large_image) * coefficients.vgg
+        )
 
         ovr_loss_mse += loss_mse.item()
         ovr_loss_vgg += loss_vgg.item()
