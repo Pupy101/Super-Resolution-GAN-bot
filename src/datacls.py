@@ -7,8 +7,11 @@ from typing import Any, Dict, Optional, Tuple, Union
 
 import torch
 from torch import nn, optim
+from torch.optim.lr_scheduler import _LRScheduler
 from torch.utils.data import DataLoader, Dataset
 from torchvision import transforms as T
+
+from .utils.misc import move_optimizer_to_device
 
 
 @dataclass  # data.augmentation
@@ -73,7 +76,7 @@ class GANModule(GANParameters):
         self.generator.load_state_dict(weight["generator"])
         self.discriminator.load_state_dict(weight["discriminator"])
 
-    def to(self, device: torch.device) -> "GANModule":
+    def to(self, device: Union[str, torch.device]) -> "GANModule":
         """
         Move to another device.
 
@@ -104,6 +107,16 @@ class Optimizer(GANModule):
 
     generator: optim.Optimizer
     discriminator: optim.Optimizer
+
+    def to(self, device: Union[str, torch.device]) -> "Optimizer":
+        move_optimizer_to_device(self, device=device)
+        return self
+
+
+@dataclass
+class Scheduler(GANParameters):
+    generator: _LRScheduler
+    discriminator: _LRScheduler
 
 
 @dataclass

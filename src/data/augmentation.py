@@ -47,11 +47,7 @@ def create_augmentation(
             ]
         )
     elif mode == ForwardType.VALIDATION.value:
-        transform = T.Compose(
-            [
-                T.CenterCrop((large_image_size, large_image_size)),
-            ]
-        )
+        transform = T.Compose([T.CenterCrop((large_image_size, large_image_size))])
     else:
         raise RuntimeError(f'Strange augmentation mode: "{mode}"')
     large_image_transform = T.Compose([T.ToTensor(), T.Normalize(mean=mean, std=std)])

@@ -3,6 +3,7 @@
 
 from contextlib import nullcontext
 from pathlib import Path
+from typing import Optional
 
 import torch
 from torch import Tensor
@@ -19,6 +20,7 @@ from ..datacls import (
     LossCoefficients,
     MetricResult,
     Optimizer,
+    Scheduler,
 )
 from ..utils.misc import get_patch
 
@@ -31,6 +33,7 @@ def train_model(
     optimizer: Optimizer,
     device: torch.device,
     coefficients: LossCoefficients,
+    scheduler: Optional[Scheduler] = None,
     accumulation: int = 1,
     patch_gan: bool = False,
     input_size: int = 112,
@@ -46,25 +49,28 @@ def train_model(
         optimizer (Optimizer): optimizers for generator and discriminator
         device (torch.device): device for training
         coefficients (LossCoefficients): coefficient for losses
+        scheduler (Optional[Scheduler], optional): optimizer lr scheduler
         accumulation (int, optional): count of accumulation steps
         patch_gan (bool, optional): use only patch from image to compute gan
         input_size (int, optional): inout to generator image size
     """
     min_eval_loss = float("inf")
+    best_epoch = 0
     save_path = Path.cwd() / "weights"
     save_path.mkdir(exist_ok=True)
     model.to(device)
-    print("Generator:")
+    print("GENERATOR:")
     summary(model=model.generator, input_size=(3, input_size, input_size))
-    print("\nDiscriminator:")
+    print("\nDISCRIMINATOR:")
     summary(model=model.discriminator, input_size=(3, input_size, input_size))
     for i in range(n_epoch):
-        print(f"\tEpoch {i+1}/{n_epoch}")
+        print(f"EPOCH {i+1}/{n_epoch}")
         train_metric = forward_one_epoch(
             model=model,
             loader=loaders.train,
             criterion=critetion,
             optimizer=optimizer,
+            scheduler=scheduler,
             device=device,
             coefficients=coefficients,
             accumulation=accumulation,
@@ -76,7 +82,6 @@ def train_model(
             model=model,
             loader=loaders.valid,
             criterion=critetion,
-            optimizer=optimizer,
             device=device,
             coefficients=coefficients,
             accumulation=accumulation,
@@ -84,22 +89,26 @@ def train_model(
             is_train=False,
         )
         eval_avg_loss = eval_metric.generator.avg
-        if train_avg_loss > eval_avg_loss and eval_avg_loss < min_eval_loss:
+        torch.save(model.state_dict(), save_path / f"Model_{i+1}.pth")
+        torch.save(optimizer.state_dict(), save_path / f"Optimizer_{i+1}.pth")
+        if eval_avg_loss < min_eval_loss:
+            best_epoch = i + 1
             min_eval_loss = eval_avg_loss
-            torch.save(model.state_dict(), save_path / f"Model_{i+1}.pth")
-            torch.save(optimizer.state_dict(), save_path / f"Optimizer_{i+1}.pth")
-    print("Best metric:")
-    print(f"\tTrain loss: {train_avg_loss:10.5f}")
-    print(f"\tEval loss:  {eval_avg_loss:10.5f}")
+
+    print(f"Train loss: {train_avg_loss:10.5f}")
+    print(f"Eval loss:  {eval_avg_loss:10.5f}")
+    print(f"Best epoch: {best_epoch}")
+    print(f"Eval loss on best epoch: {min_eval_loss:10.5f}")
 
 
 def forward_one_epoch(
     model: GANModel,
     loader: DataLoader,
     criterion: Criterion,
-    optimizer: Optimizer,
     device: torch.device,
     coefficients: LossCoefficients,
+    optimizer: Optional[Optimizer] = None,
+    scheduler: Optional[Scheduler] = None,
     accumulation: int = 1,
     patch_gan: bool = False,
     is_train: bool = True,
@@ -112,6 +121,7 @@ def forward_one_epoch(
         loader (DataLoader): training loader
         criterion (Criterion): criterions with losses function for generator and discriminator
         optimizer (Optimizer): optimizers for generator and discriminator
+        scheduler (Optional[Scheduler], optional): optimizer lr scheduler
         device (torch.device): device for training
         coefficients (LossCoefficients): coefficient for generator losses
         accumulation (int, optional): count of accumulation steps
@@ -131,8 +141,9 @@ def forward_one_epoch(
         model.discriminator.train()
         model.generator.train()
 
-        optimizer.discriminator.zero_grad()
-        optimizer.generator.zero_grad()
+        if optimizer is not None:
+            optimizer.discriminator.zero_grad()
+            optimizer.generator.zero_grad()
 
         loss_dis = torch.tensor(0.0, device=device)
         loss_gen = torch.tensor(0.0, device=device)
@@ -183,9 +194,12 @@ def forward_one_epoch(
             loss_gen += loss_vgg + loss_mse + loss_bce
             if accumulation == 1 or i % accumulation == 0 or i == length_dataloader:
                 loss_gen.backward()
-                optimizer.generator.step()
-                optimizer.generator.zero_grad()
+                if optimizer is not None:
+                    optimizer.generator.step()
+                    optimizer.generator.zero_grad()
                 loss_gen = torch.tensor(0.0, device=device)
+                if scheduler is not None:
+                    scheduler.generator.step()
 
         # discriminator
         # real images
@@ -225,9 +239,12 @@ def forward_one_epoch(
             loss_dis += loss_fake + loss_real
             if accumulation == 1 or i % accumulation == 0 or i == length_dataloader:
                 loss_dis.backward()
-                optimizer.discriminator.step()
-                optimizer.discriminator.zero_grad()
+                if optimizer is not None:
+                    optimizer.discriminator.step()
+                    optimizer.discriminator.zero_grad()
                 loss_dis = torch.tensor(0.0, device=device)
+                if scheduler is not None:
+                    scheduler.discriminator.step()
 
     avg_loss_dis = ovr_loss_dis / i
     avg_loss_gen = (ovr_loss_bce + ovr_loss_mse + ovr_loss_vgg) / i
