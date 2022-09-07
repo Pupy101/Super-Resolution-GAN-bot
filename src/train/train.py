@@ -59,6 +59,7 @@ def train_model(
     save_path = Path.cwd() / "weights"
     save_path.mkdir(exist_ok=True)
     model.to(device)
+    optimizer.to(device)
     print("GENERATOR:")
     summary(model=model.generator, input_size=(3, input_size, input_size))
     print("\nDISCRIMINATOR:")
