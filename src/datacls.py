@@ -11,8 +11,6 @@ from torch.optim.lr_scheduler import _LRScheduler
 from torch.utils.data import DataLoader, Dataset
 from torchvision import transforms as T
 
-from .utils.misc import move_optimizer_to_device
-
 
 @dataclass  # data.augmentation
 class Augmentation:
@@ -109,6 +107,8 @@ class Optimizer(GANModule):
     discriminator: optim.Optimizer
 
     def to(self, device: Union[str, torch.device]) -> "Optimizer":
+        from .utils.misc import move_optimizer_to_device
+
         move_optimizer_to_device(self, device=device)
         return self
 
