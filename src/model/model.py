@@ -1,8 +1,6 @@
 """Module with super resolution network."""
 
-from functools import reduce
-from operator import add
-from typing import List
+from typing import List, Tuple
 
 from torch import Tensor, nn
 
@@ -12,7 +10,14 @@ from .blocks import DWConv2d, DWConv2dBNPReluBlock, DWResidualBlock, ModuleDevic
 class SuperResolutionGenerator(ModuleDevice):
     """Super resolution network."""
 
-    def __init__(self, n_increase: int = 2, count_residual_blocks: int = 4):
+    def __init__(
+        self,
+        n_increase: int = 2,
+        count_residual_blocks: int = 20,
+        in_shapes: Tuple[int, ...] = (8, 16, 32),
+        inner_shape: int = 64,
+        out_shapes: Tuple = (32, 16, 8),
+    ):
         """
         Init network.
 
@@ -24,40 +29,30 @@ class SuperResolutionGenerator(ModuleDevice):
         self.n_increase = n_increase
         assert not n_increase % 2, "Increase must be multiple of 2"
         super().__init__()
-        self.prep_block = nn.Sequential(
-            DWConv2dBNPReluBlock(in_channels=3, out_channels=8),
-            DWConv2dBNPReluBlock(in_channels=8, out_channels=16),
-            DWConv2dBNPReluBlock(in_channels=16, out_channels=32),
-            DWConv2dBNPReluBlock(in_channels=32, out_channels=64),
-        )
+        # create in blocks
+        in_blocks = [DWConv2dBNPReluBlock(in_channels=3, out_channels=in_shapes[0])]
+        for i in range(len(in_shapes) - 1):
+            in_blocks.append(
+                DWConv2dBNPReluBlock(in_channels=in_shapes[i], out_channels=in_shapes[i + 1])
+            )
+        in_blocks.append(DWConv2dBNPReluBlock(in_channels=in_shapes[-1], out_channels=inner_shape))
+        self.in_blocks = nn.Sequential(*in_blocks)
+        # create residual blocks
         self.res_blocks = nn.ModuleList(
-            [
-                self._create_residual_block(input_shape=64)
-                for _ in range(count_residual_blocks)
-            ]
+            [DWResidualBlock(in_channels=inner_shape) for _ in range(count_residual_blocks)]
         )
+        # create pixel shuffle for upscale image
         self.pixel_shuffle = self._make_conv_pixel_shuffle(
-            n_increase=n_increase, input_shape=64
+            n_increase=n_increase, input_shape=inner_shape
         )
-        self.output_block = nn.Sequential(
-            DWConv2dBNPReluBlock(in_channels=64, out_channels=32),
-            DWConv2dBNPReluBlock(in_channels=32, out_channels=16),
-            DWConv2dBNPReluBlock(in_channels=16, out_channels=8),
-            DWConv2d(in_channels=8, out_channels=3),
-            nn.Tanh(),
-        )
-
-    @staticmethod
-    def _create_residual_block(input_shape: int) -> nn.Module:
-        return nn.Sequential(
-            DWResidualBlock(in_channels=input_shape),
-            # bottleneck like in mobilenet
-            DWConv2dBNPReluBlock(in_channels=input_shape, out_channels=input_shape * 4),
-            DWConv2dBNPReluBlock(in_channels=input_shape * 4, out_channels=input_shape),
-            # bottleneck like in mobilenet
-            DWResidualBlock(in_channels=input_shape),
-            DWResidualBlock(in_channels=input_shape),
-        )
+        # create output blocks
+        out_blocks = [DWConv2dBNPReluBlock(in_channels=inner_shape, out_channels=out_shapes[0])]
+        for i in range(len(out_shapes) - 1):
+            out_blocks.append(
+                DWConv2dBNPReluBlock(in_channels=out_shapes[i], out_channels=out_shapes[i + 1])
+            )
+        out_blocks.append(DWConv2d(in_channels=out_shapes[-1], out_channels=3))
+        self.out_blocks = nn.Sequential(*out_blocks)
 
     @staticmethod
     def _make_conv_pixel_shuffle(n_increase: int, input_shape: int) -> nn.Module:
@@ -73,16 +68,12 @@ class SuperResolutionGenerator(ModuleDevice):
         Increasing layers
         """
         layers: List[nn.Module] = []
-        layers.append(nn.BatchNorm2d(input_shape))
         for _ in range(n_increase // 2):
             layers.extend(
                 [
                     DWConv2d(in_channels=input_shape, out_channels=input_shape * 4),
-                    nn.PixelShuffle(2),
+                    nn.PixelShuffle(upscale_factor=2),
                     nn.PReLU(),
-                    DWResidualBlock(in_channels=input_shape),
-                    nn.PReLU(),
-                    DWResidualBlock(in_channels=input_shape),
                 ]
             )
         return nn.Sequential(*layers)
@@ -99,12 +90,9 @@ class SuperResolutionGenerator(ModuleDevice):
         -------
         output tensor
         """
-        x = self.prep_block(x)
-        res_blocks_inputs = [x]
+        x = self.in_blocks(x)
+        x_res = x
         for res_block in self.res_blocks:
-            block_input = reduce(add, res_blocks_inputs)
-            output = res_block(block_input)
-            res_blocks_inputs.append(output)
-        pixel_shuffle_input = reduce(add, res_blocks_inputs)
-        pixel_shuffle_output = self.pixel_shuffle(pixel_shuffle_input)
-        return self.output_block(pixel_shuffle_output)
+            x_res = res_block(x_res)
+        pixel_shuffle_output = self.pixel_shuffle(x_res + x)
+        return self.out_blocks(pixel_shuffle_output)
