@@ -95,9 +95,9 @@ def train_model(
             best_epoch = i + 1
             min_eval_loss = eval_avg_loss
 
-    print(f"Train loss: {train_avg_loss:10.5f}")
-    print(f"Eval loss:  {eval_avg_loss:10.5f}")
-    print(f"Best epoch: {best_epoch}")
+    print(f"Train loss:              {train_avg_loss:10.5f}")
+    print(f"Eval loss:               {eval_avg_loss:10.5f}")
+    print(f"Best epoch:              {best_epoch}")
     print(f"Eval loss on best epoch: {min_eval_loss:10.5f}")
 
 
