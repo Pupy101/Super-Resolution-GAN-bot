@@ -12,7 +12,7 @@ from .blocks import DWConv2d, DWConv2dBNPReluBlock, DWResidualBlock, ModuleDevic
 class SuperResolutionGenerator(ModuleDevice):
     """Super resolution network."""
 
-    def __init__(self, n_increase: int = 2, count_residual_blocks: int = 5):
+    def __init__(self, n_increase: int = 2, count_residual_blocks: int = 4):
         """
         Init network.
 
