@@ -13,7 +13,7 @@ class SuperResolutionGenerator(ModuleDevice):
     def __init__(
         self,
         n_increase: int = 2,
-        count_residual_blocks: int = 20,
+        count_residual_blocks: int = 30,
         in_shapes: Tuple[int, ...] = (8, 16, 32),
         inner_shape: int = 64,
         out_shapes: Tuple = (32, 16, 8),
