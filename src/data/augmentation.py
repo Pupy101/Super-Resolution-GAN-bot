@@ -41,9 +41,7 @@ def create_augmentation(
                 T.RandomCrop((large_image_size, large_image_size)),
                 T.RandomHorizontalFlip(),
                 T.RandomVerticalFlip(),
-                T.RandomApply(
-                    [T.ColorJitter(brightness=0.1, hue=0.1), T.RandomEqualize()]
-                ),
+                T.RandomApply([T.ColorJitter(brightness=0.1, hue=0.1), T.RandomEqualize()]),
             ]
         )
     elif mode == ForwardType.VALIDATION.value:
