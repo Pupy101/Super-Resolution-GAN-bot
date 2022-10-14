@@ -1,6 +1,6 @@
 """Modile with train loop."""
 
-
+import logging
 from contextlib import nullcontext
 from pathlib import Path
 from typing import Optional
@@ -22,7 +22,9 @@ from ..datacls import (
     Optimizer,
     Scheduler,
 )
-from ..utils.misc import get_patch
+from ..utils.misc import TqdmToLogger, get_patch
+
+logger = logging.getLogger(__file__)
 
 
 def train_model(
@@ -65,7 +67,9 @@ def train_model(
     print("\nDISCRIMINATOR:")
     summary(model=model.discriminator, input_size=(3, input_size, input_size))
     for i in range(n_epoch):
-        print(f"EPOCH {i+1}/{n_epoch}")
+        epoch_output = f"EPOCH {i+1}/{n_epoch}"
+        print(epoch_output)
+        logger.info(epoch_output)
         train_metric = forward_one_epoch(
             model=model,
             loader=loaders.train,
@@ -96,10 +100,21 @@ def train_model(
             best_epoch = i + 1
             min_eval_loss = eval_avg_loss
 
-    print(f"Train loss:              {train_avg_loss:10.5f}")
-    print(f"Eval loss:               {eval_avg_loss:10.5f}")
-    print(f"Best epoch:              {best_epoch}")
-    print(f"Eval loss on best epoch: {min_eval_loss:10.5f}")
+    output = f"Train loss:              {train_avg_loss:10.5f}"
+    print(output)
+    logger.info(output)
+    output = f"Eval loss:               {eval_avg_loss:10.5f}"
+    print(output)
+    logger.info(output)
+    output = f"Eval loss:               {eval_avg_loss:10.5f}"
+    print(output)
+    logger.info(output)
+    output = f"Best epoch:              {best_epoch}"
+    print(output)
+    logger.info(output)
+    output = f"Eval loss on best epoch: {min_eval_loss:10.5f}"
+    print(output)
+    logger.info(output)
 
 
 def forward_one_epoch(
@@ -141,6 +156,7 @@ def forward_one_epoch(
     if is_train:
         model.discriminator.train()
         model.generator.train()
+        assert optimizer is not None, "Set optimizer for train"
 
         if optimizer is not None:
             optimizer.discriminator.zero_grad()
@@ -151,6 +167,8 @@ def forward_one_epoch(
     else:
         model.discriminator.eval()
         model.generator.eval()
+        assert optimizer is None, "Doesn't set optimizer for validation"
+        assert scheduler is None, "Doesn't set scheduler for validation"
 
     length_dataloader = len(loader)
 
@@ -159,8 +177,10 @@ def forward_one_epoch(
     large_image: Tensor
     small_image: Tensor
 
+    tqdm_out = TqdmToLogger(logger)
+
     for i, (large_image, small_image) in tqdm(
-        enumerate(loader, 1), leave=False, total=length_dataloader
+        enumerate(loader, 1), leave=False, total=length_dataloader, file=tqdm_out
     ):
         large_image = large_image.to(device)
         small_image = small_image.to(device)
@@ -249,15 +269,16 @@ def forward_one_epoch(
     avg_loss_mse = ovr_loss_mse / i
     avg_loss_vgg = ovr_loss_vgg / i
 
-    print("TRAIN:" if is_train else "EVAL:")
-    print(f"\tDiscriminator Loss: {avg_loss_dis:7.3f}")
-    print(f"\tGenerator Loss:     {avg_loss_gen:7.3f}")
-    print(f"\tGenerator GANLoss:  {avg_loss_bce:7.3f}")
-    print(f"\tGenerator MSELoss:  {avg_loss_mse:7.3f}")
-    print(f"\tGenerator VGGLoss:  {avg_loss_vgg:7.3f}")
+    output = "TRAIN:" if is_train else "EVAL:"
+    output += f"\n\tDiscriminator Loss: {avg_loss_dis:7.3f}"
+    output += f"\n\tGenerator Loss:     {avg_loss_gen:7.3f}"
+    output += f"\n\tGenerator GANLoss:  {avg_loss_bce:7.3f}"
+    output += f"\n\tGenerator MSELoss:  {avg_loss_mse:7.3f}"
+    output += f"\n\tGenerator VGGLoss:  {avg_loss_vgg:7.3f}"
+
+    print(output)
+    logger.info(output)
     return MetricResult(
         discriminator=DiscriminatorLoss(avg=avg_loss_dis),
-        generator=GeneratorLoss(
-            avg=avg_loss_gen, bce=avg_loss_bce, mse=avg_loss_mse, vgg=avg_loss_vgg
-        ),
+        generator=GeneratorLoss(avg=avg_loss_gen, bce=avg_loss_bce, mse=avg_loss_mse, vgg=avg_loss_vgg),
     )

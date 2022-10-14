@@ -35,13 +35,20 @@ class SuperResolutionGenerator(ModuleDevice):
         ]
         for i in range(len(in_shapes) - 1):
             in_blocks.append(
-                DWConv2dBNPReluBlock(in_channels=in_shapes[i], out_channels=in_shapes[i + 1])
+                DWConv2dBNPReluBlock(
+                    in_channels=in_shapes[i], out_channels=in_shapes[i + 1]
+                )
             )
-        in_blocks.append(DWConv2dBNPReluBlock(in_channels=in_shapes[-1], out_channels=inner_shape))
+        in_blocks.append(
+            DWConv2dBNPReluBlock(in_channels=in_shapes[-1], out_channels=inner_shape)
+        )
         self.in_blocks = nn.Sequential(*in_blocks)
         # create residual blocks
         self.res_blocks = nn.ModuleList(
-            [DWResidualBlock(in_channels=inner_shape) for _ in range(count_residual_blocks)]
+            [
+                DWResidualBlock(in_channels=inner_shape)
+                for _ in range(count_residual_blocks)
+            ]
         )
         # create pixel shuffle for upscale image
         self.pixel_shuffle = self._make_conv_pixel_shuffle(
@@ -53,7 +60,9 @@ class SuperResolutionGenerator(ModuleDevice):
         ]
         for i in range(len(out_shapes) - 1):
             out_blocks.append(
-                DWConv2dBNPReluBlock(in_channels=out_shapes[i], out_channels=out_shapes[i + 1])
+                DWConv2dBNPReluBlock(
+                    in_channels=out_shapes[i], out_channels=out_shapes[i + 1]
+                )
             )
         out_blocks.append(DWConv2d(in_channels=out_shapes[-1], out_channels=3))
         self.out_blocks = nn.Sequential(*out_blocks)

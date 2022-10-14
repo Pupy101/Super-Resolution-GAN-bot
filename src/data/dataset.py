@@ -1,6 +1,6 @@
 """Module with torch dataset for super resolution network."""
 
-from logging import getLogger
+import logging
 from pathlib import Path
 from typing import List, Optional, Set, Tuple, Union
 
@@ -10,7 +10,7 @@ from torch.utils.data import Dataset
 
 from ..datacls import Augmentation
 
-logger = getLogger(__file__)
+logger = logging.getLogger(__file__)
 
 
 class SuperResolutionDataset(Dataset):
@@ -57,9 +57,7 @@ class SuperResolutionDataset(Dataset):
         return large_image, small_image
 
     @staticmethod
-    def _find_all_images(
-        folders: List[Union[str, Path]], available_extensions: Set[str]
-    ) -> List[Path]:
+    def _find_all_images(folders: List[Union[str, Path]], available_extensions: Set[str]) -> List[Path]:
         """
         Find all images in given directories.
 

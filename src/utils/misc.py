@@ -1,5 +1,7 @@
 """Module with functions."""
 
+import io
+import logging
 from pathlib import Path
 from random import randint
 from typing import Generator, Iterable, List, Optional, Tuple, TypeVar, Union
@@ -13,6 +15,27 @@ from ..datacls import InferenceAugmentation, Optimizer
 from ..model import SuperResolutionGenerator
 
 T = TypeVar("T")
+
+
+class TqdmToLogger(io.StringIO):
+    """
+    Output stream for TQDM which will output to logger module instead of the StdOut.
+    """
+
+    logger = logging.getLogger(__file__)
+    level = None
+    buf = ""
+
+    def __init__(self, logger: logging.Logger, level: Optional[int] = None):
+        super().__init__()
+        self.logger = logger
+        self.level = level or logging.INFO
+
+    def write(self, buf: str):
+        self.buf = buf.strip("\r\n\t ")
+
+    def flush(self):
+        self.logger.log(self.level, self.buf)
 
 
 def denormolize(

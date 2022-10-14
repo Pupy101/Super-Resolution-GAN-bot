@@ -51,7 +51,12 @@ class DWConv2d(ModuleDevice):
                 padding=padding,
                 groups=in_channels,
             ),
-            nn.Conv2d(in_channels=in_channels, out_channels=out_channels, kernel_size=1, stride=1),
+            nn.Conv2d(
+                in_channels=in_channels,
+                out_channels=out_channels,
+                kernel_size=1,
+                stride=1,
+            ),
         )
 
     def forward(self, x: Tensor) -> Tensor:
