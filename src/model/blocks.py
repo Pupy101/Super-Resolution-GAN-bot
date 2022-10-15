@@ -23,12 +23,7 @@ class DWConv2d(ModuleDevice):
     """DepthWise convolution layer."""
 
     def __init__(
-        self,
-        in_channels: int,
-        out_channels: int,
-        kernel_size: int = 3,
-        stride: int = 1,
-        padding: int = 1,
+        self, in_channels: int, out_channels: int, kernel_size: int = 3, stride: int = 1, padding: int = 1
     ) -> None:
         """
         Init DepthWise convolution.
@@ -51,12 +46,7 @@ class DWConv2d(ModuleDevice):
                 padding=padding,
                 groups=in_channels,
             ),
-            nn.Conv2d(
-                in_channels=in_channels,
-                out_channels=out_channels,
-                kernel_size=1,
-                stride=1,
-            ),
+            nn.Conv2d(in_channels=in_channels, out_channels=out_channels, kernel_size=1, stride=1),
         )
 
     def forward(self, x: Tensor) -> Tensor:
@@ -77,14 +67,7 @@ class DWConv2d(ModuleDevice):
 class DWConv2dBNPReluBlock(ModuleDevice):
     """Block with sequence of DepthWise convolution + BN + PReLU."""
 
-    def __init__(
-        self,
-        in_channels: int,
-        out_channels: int,
-        kernel_size: int = 3,
-        stride: int = 1,
-        padding: int = 1,
-    ):
+    def __init__(self, in_channels: int, out_channels: int, kernel_size: int = 3, stride: int = 1, padding: int = 1):
         """
         Init block with DepthWise convolution, BN, PReLU.
 
@@ -126,13 +109,7 @@ class DWConv2dBNPReluBlock(ModuleDevice):
 class DWResidualBlock(ModuleDevice):
     """Residual block with sequence of DepthWise convolution + BN + PReLU + DepthWise convolution + BN."""
 
-    def __init__(
-        self,
-        in_channels: int,
-        kernel_size: int = 3,
-        stride: int = 1,
-        padding: int = 1,
-    ):
+    def __init__(self, in_channels: int, kernel_size: int = 3, stride: int = 1, padding: int = 1):
         """
         Init residual block (DepthWise convolution + BN + PReLU + DepthWise convolution + BN).
 

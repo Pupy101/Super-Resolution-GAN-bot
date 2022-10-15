@@ -7,7 +7,7 @@ from typing import List, Union
 import torch
 from torch import Tensor
 
-from ..data.augmentation import create_inference_augmentation
+from ..data import create_inference_augmentation
 from ..datacls import InferenceConfig
 from ..utils.misc import create_chunks, denormolize, prepare_image, write_image
 
@@ -34,9 +34,7 @@ class SuperResolutionConsumer:
         self.input_dir = Path(config.input_dir)
         self.target_dir = Path(config.target_dir)
         self.available_extensions = {".png", ".jpg", ".jpeg", ".tiff", ".bmp", ".gif"}
-        assert (
-            self.input_dir.is_dir() and self.target_dir.is_dir()
-        ), "Check input and target path model consumer"
+        assert self.input_dir.is_dir() and self.target_dir.is_dir(), "Check input and target path model consumer"
 
     def prepare_model(self, weight: Union[str, Path]) -> None:
         """

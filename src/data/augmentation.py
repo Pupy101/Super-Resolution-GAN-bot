@@ -41,9 +41,7 @@ def create_augmentation(
                 T.RandomCrop((large_image_size, large_image_size)),
                 T.RandomHorizontalFlip(),
                 T.RandomVerticalFlip(),
-                T.RandomApply(
-                    [T.ColorJitter(brightness=0.1, hue=0.1), T.RandomEqualize()]
-                ),
+                T.RandomApply([T.ColorJitter(brightness=0.1, hue=0.1), T.RandomEqualize()]),
             ]
         )
     elif mode == ForwardType.VALIDATION.value:
@@ -52,16 +50,8 @@ def create_augmentation(
         raise RuntimeError(f'Strange augmentation mode: "{mode}"')
     large_image_transform = T.Compose([T.ToTensor(), T.Normalize(mean=mean, std=std)])
     small_image_size = round(large_image_size * ratio_small_to_large)
-    small_image_transform = T.Compose(
-        [T.Resize(small_image_size), T.ToTensor(), T.Normalize(mean=mean, std=std)]
-    )
-    return Augmentation(
-        mean=mean,
-        std=mean,
-        main=transform,
-        large=large_image_transform,
-        small=small_image_transform,
-    )
+    small_image_transform = T.Compose([T.Resize(small_image_size), T.ToTensor(), T.Normalize(mean=mean, std=std)])
+    return Augmentation(mean=mean, std=mean, main=transform, large=large_image_transform, small=small_image_transform)
 
 
 def create_inference_augmentation(
@@ -84,9 +74,6 @@ def create_inference_augmentation(
         mean = (0.5, 0.5, 0.5)
     if std is None:
         std = (0.5, 0.5, 0.5)
-    return InferenceAugmentation(
-        mean=mean,
-        std=mean,
-        main=T.Compose([T.ToTensor(), T.Normalize(mean=mean, std=std)]),
-        resize=T.Resize(input_image_size),
-    )
+    inference_transform = T.Compose([T.ToTensor(), T.Normalize(mean=mean, std=std)])
+    inference_resize = T.Resize(input_image_size)
+    return InferenceAugmentation(mean=mean, std=mean, main=inference_transform, resize=inference_resize)
